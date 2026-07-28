@@ -4,7 +4,7 @@ import { PHOTORESIST_PRESETS } from "../lib/photoresists.js";
 import { buildMaterialColumns, buildSpinFilm, calibratedThickness, polygonIntervalsAtY, sampleIntervals } from "../lib/spincoat.js";
 
 test("photoresist references are complete and physically valid", () => {
-  assert.ok(PHOTORESIST_PRESETS.length >= 10);
+  assert.ok(PHOTORESIST_PRESETS.length >= 50);
   assert.equal(new Set(PHOTORESIST_PRESETS.map(({ id }) => id)).size, PHOTORESIST_PRESETS.length);
   for (const preset of PHOTORESIST_PRESETS) {
     assert.ok(preset.referenceThicknessNm > 0);

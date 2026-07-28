@@ -9,6 +9,8 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(html, /LIVE CROSS-SECTION/);
   assert.match(html, /MICROPOSIT S1813/);
   assert.match(html, /SU-8 2002/);
+  assert.match(html, /KMPR 1010/);
+  assert.match(html, /AZ 4562/);
   assert.match(html, /SiO₂/);
   assert.match(html, /µm/);
   assert.doesNotMatch(html, /Â|Ã|â/);

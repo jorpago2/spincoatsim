@@ -342,7 +342,7 @@ export default function SpinCoatPage() {
             <div className="step-heading"><span>03</span><div><p>SPIN COATING</p><h2>Calibrated film</h2></div></div>
             <div className="settings-grid spin-fields">
               <label className="full-width">Photoresist reference<select value={photoresistPresetId} onChange={applyPhotoresistPreset}><option value="">Custom calibration</option>{PHOTORESIST_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.manufacturer} · {preset.name} · {preset.referenceThicknessNm / 1000} µm @ {preset.referenceRpm} rpm</option>)}</select></label>
-              <label>Reference thickness <span>nm</span><input type="number" min="1" value={referenceThickness} onChange={(event) => setReferenceThickness(bounded(Number(event.target.value), referenceThickness, 1, 1e6))} /></label>
+              <label>Film thickness <span>nm</span><input type="number" min="1" value={referenceThickness} onChange={(event) => setReferenceThickness(bounded(Number(event.target.value), referenceThickness, 1, 1e6))} /></label>
               <label>Reference speed <span>rpm</span><input type="number" min="1" value={referenceRpm} onChange={(event) => setReferenceRpm(bounded(Number(event.target.value), referenceRpm, 1, 100000))} /></label>
               <label>Simulated speed <span>rpm</span><input type="number" min="1" value={rpm} onChange={(event) => setRpm(bounded(Number(event.target.value), rpm, 1, 100000))} /></label>
               <label>Exponent n<input type="number" min="0" max="2" step="0.05" value={exponent} onChange={(event) => setExponent(bounded(Number(event.target.value), exponent, 0, 2))} /></label>
