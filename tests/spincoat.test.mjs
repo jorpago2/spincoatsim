@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PHOTORESIST_PRESETS } from "../lib/photoresists.js";
+import { filterPhotoresists, PHOTORESIST_PRESETS } from "../lib/photoresists.js";
 import { buildMaterialColumns, buildSpinFilm, calibratedThickness, polygonIntervalsAtY, sampleIntervals } from "../lib/spincoat.js";
 
 test("photoresist references are complete and physically valid", () => {
@@ -11,6 +11,10 @@ test("photoresist references are complete and physically valid", () => {
     assert.ok(preset.referenceRpm > 0);
     assert.match(preset.sourceUrl, /^https:\/\//);
   }
+  const negativeKayaku = filterPhotoresists("Negative", "Kayaku");
+  assert.ok(negativeKayaku.length > 0);
+  assert.ok(negativeKayaku.every((preset) => preset.tone.startsWith("Negative") && preset.manufacturer === "Kayaku"));
+  assert.deepEqual(filterPhotoresists("Image reversal", "AZ / Merck").map(({ id }) => id), ["az-5214e"]);
 });
 
 test("builds an area-conserving coated cross-section from a GDS slice", () => {

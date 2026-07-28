@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
-import { PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
+import { filterPhotoresists, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
 import {
   buildMaterialColumns,
   buildSpinFilm,
@@ -74,6 +74,8 @@ export default function SpinCoatPage() {
   const [rpm, setRpm] = useState(3000);
   const [exponent, setExponent] = useState(0.5);
   const [photoresistPresetId, setPhotoresistPresetId] = useState("");
+  const [photoresistPolarity, setPhotoresistPolarity] = useState("");
+  const [photoresistManufacturer, setPhotoresistManufacturer] = useState("");
   const [shrinkage, setShrinkage] = useState(25);
   const [levelingStrength, setLevelingStrength] = useState(65);
   const [levelingLength, setLevelingLength] = useState(8);
@@ -91,6 +93,7 @@ export default function SpinCoatPage() {
 
   const availableLayers = useMemo(() => [...new Set(shapes.map((shape) => shape.layer))].sort((a, b) => a - b), [shapes]);
   const photoresistPreset = PHOTORESIST_PRESETS.find((preset) => preset.id === photoresistPresetId);
+  const filteredPhotoresists = filterPhotoresists(photoresistPolarity, photoresistManufacturer);
   const xMin = centreX - viewWidth / 2;
   const xMax = centreX + viewWidth / 2;
   const dryThickness = calibratedThickness(referenceThickness, referenceRpm, rpm, exponent);
@@ -341,7 +344,9 @@ export default function SpinCoatPage() {
           <section className="spin-control-section">
             <div className="step-heading"><span>03</span><div><p>SPIN COATING</p><h2>Calibrated film</h2></div></div>
             <div className="settings-grid spin-fields">
-              <label className="full-width">Photoresist reference<select value={photoresistPresetId} onChange={applyPhotoresistPreset}><option value="">Custom calibration</option>{PHOTORESIST_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.manufacturer} · {preset.name} · {preset.referenceThicknessNm / 1000} µm @ {preset.referenceRpm} rpm</option>)}</select></label>
+              <label>Polarity<select value={photoresistPolarity} onChange={(event) => { setPhotoresistPolarity(event.target.value); setPhotoresistPresetId(""); }}><option value="">All polarities</option>{PHOTORESIST_POLARITIES.map((polarity) => <option key={polarity} value={polarity}>{polarity}</option>)}</select></label>
+              <label>Brand<select value={photoresistManufacturer} onChange={(event) => { setPhotoresistManufacturer(event.target.value); setPhotoresistPresetId(""); }}><option value="">All brands</option>{PHOTORESIST_MANUFACTURERS.map((manufacturer) => <option key={manufacturer} value={manufacturer}>{manufacturer}</option>)}</select></label>
+              <label className="full-width">Photoresist reference <span>{filteredPhotoresists.length}/{PHOTORESIST_PRESETS.length}</span><select value={photoresistPresetId} onChange={applyPhotoresistPreset}><option value="">Custom calibration</option>{filteredPhotoresists.map((preset) => <option key={preset.id} value={preset.id}>{preset.manufacturer} · {preset.name} · {preset.referenceThicknessNm / 1000} µm @ {preset.referenceRpm} rpm</option>)}</select></label>
               <label>Film thickness <span>nm</span><input type="number" min="1" value={referenceThickness} onChange={(event) => setReferenceThickness(bounded(Number(event.target.value), referenceThickness, 1, 1e6))} /></label>
               <label>Reference speed <span>rpm</span><input type="number" min="1" value={referenceRpm} onChange={(event) => setReferenceRpm(bounded(Number(event.target.value), referenceRpm, 1, 100000))} /></label>
               <label>Simulated speed <span>rpm</span><input type="number" min="1" value={rpm} onChange={(event) => setRpm(bounded(Number(event.target.value), rpm, 1, 100000))} /></label>
