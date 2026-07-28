@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { filterMetalOxides, METAL_OXIDE_PRESETS } from "../lib/metal-oxides.js";
-import { filterPhotoresists, PHOTORESIST_PRESETS } from "../lib/photoresists.js";
+import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_PRESETS } from "../lib/photoresists.js";
 import { buildMaterialColumns, buildSpinFilm, calibratedThickness, polygonIntervalsAtY, sampleIntervals } from "../lib/spincoat.js";
 
 test("photoresist references are complete and physically valid", () => {
@@ -17,6 +17,11 @@ test("photoresist references are complete and physically valid", () => {
   assert.ok(negativeKayaku.every((preset) => preset.tone.startsWith("Negative") && preset.manufacturer === "Kayaku"));
   assert.deepEqual(filterPhotoresists("Image reversal", "AZ / Merck").map(({ id }) => id), ["az-5214e"]);
   assert.deepEqual(filterPhotoresists("Image reversal", "TI / MicroChemicals").map(({ id }) => id), ["ti-35e"]);
+  assert.deepEqual(PHOTORESIST_EXPOSURE_WAVELENGTHS, [405]);
+  const resists405nm = filterPhotoresists("", "", 405);
+  assert.ok(resists405nm.length >= 20);
+  assert.ok(resists405nm.every((preset) => preset.exposureWavelengthsNm.includes(405)));
+  assert.deepEqual(filterPhotoresists("Negative", "Allresist", 405).map(({ id }) => id), ["ar-n-4340", "ar-n-4400-10"]);
 });
 
 test("metal-oxide references identify a reproducible published process", () => {

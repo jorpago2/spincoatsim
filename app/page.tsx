@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
-import { filterPhotoresists, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
+import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
 import {
   buildMaterialColumns,
   buildSpinFilm,
@@ -78,6 +78,7 @@ export default function SpinCoatPage() {
   const [coatingPresetId, setCoatingPresetId] = useState("");
   const [photoresistPolarity, setPhotoresistPolarity] = useState("");
   const [photoresistManufacturer, setPhotoresistManufacturer] = useState("");
+  const [photoresistExposureNm, setPhotoresistExposureNm] = useState("");
   const [metalOxideFamily, setMetalOxideFamily] = useState("");
   const [shrinkage, setShrinkage] = useState(25);
   const [levelingStrength, setLevelingStrength] = useState(65);
@@ -98,7 +99,7 @@ export default function SpinCoatPage() {
   const photoresistPreset = coatingLibrary === "photoresist" ? PHOTORESIST_PRESETS.find((preset) => preset.id === coatingPresetId) : undefined;
   const metalOxidePreset = coatingLibrary === "oxide" ? METAL_OXIDE_PRESETS.find((preset) => preset.id === coatingPresetId) : undefined;
   const coatingPreset = photoresistPreset ?? metalOxidePreset;
-  const filteredPhotoresists = filterPhotoresists(photoresistPolarity, photoresistManufacturer);
+  const filteredPhotoresists = filterPhotoresists(photoresistPolarity, photoresistManufacturer, photoresistExposureNm);
   const filteredMetalOxides = filterMetalOxides(metalOxideFamily);
   const filteredCoatings = coatingLibrary === "photoresist" ? filteredPhotoresists : filteredMetalOxides;
   const coatingLibrarySize = coatingLibrary === "photoresist" ? PHOTORESIST_PRESETS.length : METAL_OXIDE_PRESETS.length;
@@ -357,6 +358,7 @@ export default function SpinCoatPage() {
               {coatingLibrary === "photoresist" ? <>
                 <label>Polarity<select value={photoresistPolarity} onChange={(event) => { setPhotoresistPolarity(event.target.value); setCoatingPresetId(""); }}><option value="">All polarities</option>{PHOTORESIST_POLARITIES.map((polarity) => <option key={polarity} value={polarity}>{polarity}</option>)}</select></label>
                 <label>Brand<select value={photoresistManufacturer} onChange={(event) => { setPhotoresistManufacturer(event.target.value); setCoatingPresetId(""); }}><option value="">All brands</option>{PHOTORESIST_MANUFACTURERS.map((manufacturer) => <option key={manufacturer} value={manufacturer}>{manufacturer}</option>)}</select></label>
+                <label className="full-width">Exposure<select value={photoresistExposureNm} onChange={(event) => { setPhotoresistExposureNm(event.target.value); setCoatingPresetId(""); }}><option value="">All wavelengths</option>{PHOTORESIST_EXPOSURE_WAVELENGTHS.map((wavelength) => <option key={wavelength} value={wavelength}>≈{wavelength} nm (h-line)</option>)}</select></label>
               </> : <label className="full-width">Oxide<select value={metalOxideFamily} onChange={(event) => { setMetalOxideFamily(event.target.value); setCoatingPresetId(""); }}><option value="">All oxides</option>{METAL_OXIDE_FAMILIES.map((family) => <option key={family} value={family}>{family}</option>)}</select></label>}
               <label className="full-width">Reference process <span>{filteredCoatings.length}/{coatingLibrarySize}</span><select value={coatingPresetId} onChange={applyCoatingPreset}><option value="">Custom calibration</option>{coatingLibrary === "photoresist" ? filteredPhotoresists.map((preset) => <option key={preset.id} value={preset.id}>{preset.manufacturer} · {preset.name} · {preset.referenceThicknessNm / 1000} µm @ {preset.referenceRpm} rpm</option>) : filteredMetalOxides.map((preset) => <option key={preset.id} value={preset.id}>{preset.family} · {preset.name} · {preset.referenceThicknessNm} nm @ {preset.referenceRpm} rpm</option>)}</select></label>
               <label>Film thickness <span>nm</span><input type="number" min="1" value={referenceThickness} onChange={(event) => setReferenceThickness(bounded(Number(event.target.value), referenceThickness, 1, 1e6))} /></label>
@@ -367,7 +369,7 @@ export default function SpinCoatPage() {
               <label>Leveling strength <span>{levelingStrength}%</span><input className="spin-range" type="range" min="0" max="100" value={levelingStrength} onChange={(event) => setLevelingStrength(Number(event.target.value))} /></label>
               <label className="full-width">Lateral leveling length <span>µm</span><input type="number" min="0" step="0.5" value={levelingLength} onChange={(event) => setLevelingLength(bounded(Number(event.target.value), levelingLength, 0, 1e6))} /></label>
             </div>
-            {photoresistPreset && <aside className="spin-reference" aria-live="polite"><b>{photoresistPreset.name} · {photoresistPreset.tone}</b><span>{photoresistPreset.evidence}. Loaded with generic n = 0.5 and 0% additional shrinkage.</span><a href={photoresistPreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</a></aside>}
+            {photoresistPreset && <aside className="spin-reference" aria-live="polite"><b>{photoresistPreset.name} · {photoresistPreset.tone}</b>{photoresistPreset.exposureWavelengthsNm && <span>Verified exposure lines: {photoresistPreset.exposureWavelengthsNm.join(", ")} nm.</span>}<span>{photoresistPreset.evidence}. Loaded with generic n = 0.5 and 0% additional shrinkage.</span><a href={photoresistPreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</a></aside>}
             {metalOxidePreset && <aside className="spin-reference" aria-live="polite"><b>{metalOxidePreset.family} · {metalOxidePreset.name}</b><span>{metalOxidePreset.precursor} on {metalOxidePreset.substrate}. {metalOxidePreset.cycles} coat(s), {metalOxidePreset.spinSeconds} s; {metalOxidePreset.thermalTreatment}. {metalOxidePreset.phase}.</span><span>{metalOxidePreset.evidence}. The loaded value is the published final dry thickness; n = 0.5 remains a generic extrapolation.</span><a href={metalOxidePreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</a></aside>}
             <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>

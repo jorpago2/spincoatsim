@@ -16,6 +16,8 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(html, /Metal oxides/);
   assert.match(html, /All polarities/);
   assert.match(html, /All brands/);
+  assert.match(html, /All wavelengths/);
+  assert.match(html, /h-line/);
   assert.match(html, /SiO₂/);
   assert.match(html, /µm/);
   assert.doesNotMatch(html, /Â|Ã|â/);
