@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { PHOTORESIST_PRESETS } from "../lib/photoresists.js";
 import { buildMaterialColumns, buildSpinFilm, calibratedThickness, polygonIntervalsAtY, sampleIntervals } from "../lib/spincoat.js";
+
+test("photoresist references are complete and physically valid", () => {
+  assert.ok(PHOTORESIST_PRESETS.length >= 10);
+  assert.equal(new Set(PHOTORESIST_PRESETS.map(({ id }) => id)).size, PHOTORESIST_PRESETS.length);
+  for (const preset of PHOTORESIST_PRESETS) {
+    assert.ok(preset.referenceThicknessNm > 0);
+    assert.ok(preset.referenceRpm > 0);
+    assert.match(preset.sourceUrl, /^https:\/\//);
+  }
+});
 
 test("builds an area-conserving coated cross-section from a GDS slice", () => {
   assert.equal(calibratedThickness(200, 1000, 4000, 0.5), 100);

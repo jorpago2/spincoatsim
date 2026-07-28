@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
+import { PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
 import {
   buildMaterialColumns,
   buildSpinFilm,
@@ -72,6 +73,7 @@ export default function SpinCoatPage() {
   const [referenceRpm, setReferenceRpm] = useState(3000);
   const [rpm, setRpm] = useState(3000);
   const [exponent, setExponent] = useState(0.5);
+  const [photoresistPresetId, setPhotoresistPresetId] = useState("");
   const [shrinkage, setShrinkage] = useState(25);
   const [levelingStrength, setLevelingStrength] = useState(65);
   const [levelingLength, setLevelingLength] = useState(8);
@@ -88,6 +90,7 @@ export default function SpinCoatPage() {
   }, []);
 
   const availableLayers = useMemo(() => [...new Set(shapes.map((shape) => shape.layer))].sort((a, b) => a - b), [shapes]);
+  const photoresistPreset = PHOTORESIST_PRESETS.find((preset) => preset.id === photoresistPresetId);
   const xMin = centreX - viewWidth / 2;
   const xMax = centreX + viewWidth / 2;
   const dryThickness = calibratedThickness(referenceThickness, referenceRpm, rpm, exponent);
@@ -254,12 +257,23 @@ export default function SpinCoatPage() {
     }]);
   }
 
+  function applyPhotoresistPreset(event: ChangeEvent<HTMLSelectElement>) {
+    const preset = PHOTORESIST_PRESETS.find((item) => item.id === event.target.value);
+    setPhotoresistPresetId(event.target.value);
+    if (!preset) return;
+    setReferenceThickness(preset.referenceThicknessNm);
+    setReferenceRpm(preset.referenceRpm);
+    setRpm(preset.referenceRpm);
+    setExponent(0.5);
+    setShrinkage(0);
+  }
+
   function exportModel() {
     const data = {
       schema: "spincoatsim-model/v2",
       source: { fileName, topCell, sliceYMicrometers: sliceY, centreXMicrometers: centreX, widthMicrometers: viewWidth },
       stack: { substrateThicknessNm: substrateThickness, layers },
-      coating: { referenceThicknessNm: referenceThickness, referenceRpm, rpm, exponent, shrinkagePercent: shrinkage, levelingStrengthPercent: levelingStrength, levelingLengthMicrometers: levelingLength, predictedFinalThicknessNm: finalThickness },
+      coating: { referencePreset: photoresistPreset ? { id: photoresistPreset.id, manufacturer: photoresistPreset.manufacturer, name: photoresistPreset.name, sourceUrl: photoresistPreset.sourceUrl } : null, referenceThicknessNm: referenceThickness, referenceRpm, rpm, exponent, shrinkagePercent: shrinkage, levelingStrengthPercent: levelingStrength, levelingLengthMicrometers: levelingLength, predictedFinalThicknessNm: finalThickness },
       result: { minimumThicknessNm: section.film.minimumThicknessNm, meanThicknessNm: section.film.meanThicknessNm, maximumThicknessNm: section.film.maximumThicknessNm, degreeOfPlanarizationPercent: section.film.degreeOfPlanarizationPercent, thicknessNonUniformityPercent: section.film.thicknessNonUniformityPercent },
     };
     saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "spincoat-model.json");
@@ -327,7 +341,8 @@ export default function SpinCoatPage() {
           <section className="spin-control-section">
             <div className="step-heading"><span>03</span><div><p>SPIN COATING</p><h2>Calibrated film</h2></div></div>
             <div className="settings-grid spin-fields">
-              <label>Measured thickness <span>nm</span><input type="number" min="1" value={referenceThickness} onChange={(event) => setReferenceThickness(bounded(Number(event.target.value), referenceThickness, 1, 1e6))} /></label>
+              <label className="full-width">Photoresist reference<select value={photoresistPresetId} onChange={applyPhotoresistPreset}><option value="">Custom calibration</option>{PHOTORESIST_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.manufacturer} · {preset.name} · {preset.referenceThicknessNm / 1000} µm @ {preset.referenceRpm} rpm</option>)}</select></label>
+              <label>Reference thickness <span>nm</span><input type="number" min="1" value={referenceThickness} onChange={(event) => setReferenceThickness(bounded(Number(event.target.value), referenceThickness, 1, 1e6))} /></label>
               <label>Reference speed <span>rpm</span><input type="number" min="1" value={referenceRpm} onChange={(event) => setReferenceRpm(bounded(Number(event.target.value), referenceRpm, 1, 100000))} /></label>
               <label>Simulated speed <span>rpm</span><input type="number" min="1" value={rpm} onChange={(event) => setRpm(bounded(Number(event.target.value), rpm, 1, 100000))} /></label>
               <label>Exponent n<input type="number" min="0" max="2" step="0.05" value={exponent} onChange={(event) => setExponent(bounded(Number(event.target.value), exponent, 0, 2))} /></label>
@@ -335,8 +350,9 @@ export default function SpinCoatPage() {
               <label>Leveling strength <span>{levelingStrength}%</span><input className="spin-range" type="range" min="0" max="100" value={levelingStrength} onChange={(event) => setLevelingStrength(Number(event.target.value))} /></label>
               <label className="full-width">Lateral leveling length <span>µm</span><input type="number" min="0" step="0.5" value={levelingLength} onChange={(event) => setLevelingLength(bounded(Number(event.target.value), levelingLength, 0, 1e6))} /></label>
             </div>
+            {photoresistPreset && <aside className="spin-reference" aria-live="polite"><b>{photoresistPreset.name} · {photoresistPreset.tone}</b><span>{photoresistPreset.evidence}. Loaded with generic n = 0.5 and 0% additional shrinkage.</span><a href={photoresistPreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</a></aside>}
             <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
-            <p className="spin-note">The leveling length sets the lateral distance over which the free surface responds to topography. Fit it to profilometry rather than treating it as a material constant.</p>
+            <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
           </section>
         </aside>
 
