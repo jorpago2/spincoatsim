@@ -32,4 +32,23 @@ test("caps etching at the displayed substrate depth", () => {
   assert.equal(columns[1].at(-1).top, 0);
 });
 
+test("finite-range leveling conserves area and smooths narrow features more strongly", () => {
+  const makeFilm = (ridgeWidth, count = 64) => {
+    const start = (count - ridgeWidth) / 2;
+    const mask = Array.from({ length: count }, (_, index) => index >= start && index < start + ridgeWidth);
+    const columns = buildMaterialColumns({
+      count,
+      substrate: { name: "Si", color: "gray", thicknessNm: 500 },
+      layers: [{ name: "ridge", color: "gold", mode: "patterned", thicknessNm: 100, mask }],
+    });
+    return buildSpinFilm(columns, 200, 0.8, 6 * count / 64);
+  };
 
+  const narrow = makeFilm(4);
+  const wide = makeFilm(32);
+  const refinedNarrow = makeFilm(8, 128);
+  assert.ok(Math.abs(narrow.meanThicknessNm - 200) < 1e-8);
+  assert.ok(Math.abs(wide.meanThicknessNm - 200) < 1e-8);
+  assert.ok(narrow.degreeOfPlanarizationPercent > wide.degreeOfPlanarizationPercent);
+  assert.ok(Math.abs(narrow.degreeOfPlanarizationPercent - refinedNarrow.degreeOfPlanarizationPercent) < 0.5);
+});

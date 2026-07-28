@@ -24,6 +24,8 @@ type SectionResult = {
     minimumThicknessNm: number;
     maximumThicknessNm: number;
     meanThicknessNm: number;
+    degreeOfPlanarizationPercent: number;
+    thicknessNonUniformityPercent: number;
   };
   ignoredPaths: number;
 };
@@ -71,7 +73,8 @@ export default function SpinCoatPage() {
   const [rpm, setRpm] = useState(3000);
   const [exponent, setExponent] = useState(0.5);
   const [shrinkage, setShrinkage] = useState(25);
-  const [planarization, setPlanarization] = useState(65);
+  const [levelingStrength, setLevelingStrength] = useState(65);
+  const [levelingLength, setLevelingLength] = useState(8);
   const [cursorIndex, setCursorIndex] = useState(Math.floor(RESOLUTION / 2));
   const [canvasCssWidth, setCanvasCssWidth] = useState(1200);
   const [error, setError] = useState("");
@@ -103,10 +106,10 @@ export default function SpinCoatPage() {
     });
     return {
       columns,
-      film: buildSpinFilm(columns, finalThickness, planarization / 100),
+      film: buildSpinFilm(columns, finalThickness, levelingStrength / 100, levelingLength / (viewWidth / RESOLUTION)),
       ignoredPaths: slices.reduce((sum, slice) => sum + slice.ignoredPaths, 0),
     };
-  }, [shapes, layers, sliceY, xMin, xMax, substrateThickness, finalThickness, planarization]);
+  }, [shapes, layers, sliceY, xMin, xMax, substrateThickness, finalThickness, levelingStrength, levelingLength, viewWidth]);
 
   useEffect(() => {
     const element = canvas.current;
@@ -122,24 +125,29 @@ export default function SpinCoatPage() {
     context.fillStyle = "#07100d";
     context.fillRect(0, 0, width, height);
 
-    const margin = { left: 76, right: 30, top: 38, bottom: 55 };
+    const compact = width < 600;
+    const margin = compact ? { left: 52, right: 14, top: 34, bottom: 43 } : { left: 76, right: 30, top: 38, bottom: 55 };
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
     const allBottoms = section.columns.flatMap((column) => column.map((segment) => segment.bottom));
     const minZ = Math.min(...allBottoms);
-    const maxZ = Math.max(...section.film.top) * 1.12 + 20;
+    const highestFilmPoint = Math.max(...section.film.top);
+    const maxZ = highestFilmPoint + Math.max(20, (highestFilmPoint - minZ) * 0.05);
+    const zRange = maxZ - minZ;
     const mapY = (z: number) => margin.top + ((maxZ - z) / (maxZ - minZ)) * plotHeight;
     const columnWidth = plotWidth / RESOLUTION;
+    const verticalExaggeration = (viewWidth * 1000 / plotWidth) / (zRange / plotHeight);
 
     context.strokeStyle = "rgba(217,255,67,.12)";
     context.lineWidth = 1;
-    context.font = "12px monospace";
+    context.font = `${compact ? 9 : 12}px monospace`;
     context.fillStyle = "#87928a";
-    for (let tick = 0; tick <= 5; tick += 1) {
-      const y = margin.top + (tick / 5) * plotHeight;
-      const z = maxZ - (tick / 5) * (maxZ - minZ);
+    const verticalTicks = compact ? 3 : 5;
+    for (let tick = 0; tick <= verticalTicks; tick += 1) {
+      const y = margin.top + (tick / verticalTicks) * plotHeight;
+      const z = maxZ - (tick / verticalTicks) * zRange;
       context.beginPath(); context.moveTo(margin.left, y); context.lineTo(width - margin.right, y); context.stroke();
-      context.fillText(`${Math.round(z)} nm`, 8, y + 4);
+      context.fillText(`${Math.round(z)}`, 8, y + 4);
     }
 
     section.columns.forEach((column, index) => {
@@ -152,30 +160,58 @@ export default function SpinCoatPage() {
       context.fillRect(x, mapY(section.film.top[index]), Math.ceil(columnWidth + 0.5), Math.max(1, mapY(section.film.surface[index]) - mapY(section.film.top[index])));
     });
 
-    context.strokeStyle = "#ffb08f";
-    context.lineWidth = 2;
-    context.beginPath();
-    section.film.top.forEach((z, index) => {
-      const x = margin.left + (index + 0.5) * columnWidth;
-      if (index === 0) context.moveTo(x, mapY(z)); else context.lineTo(x, mapY(z));
-    });
-    context.stroke();
+    const strokeProfile = (values: number[], color: string, lineWidth: number) => {
+      context.strokeStyle = color;
+      context.lineWidth = lineWidth;
+      context.beginPath();
+      values.forEach((z, index) => {
+        const x = margin.left + (index + 0.5) * columnWidth;
+        if (index === 0) context.moveTo(x, mapY(z)); else context.lineTo(x, mapY(z));
+      });
+      context.stroke();
+    };
+    strokeProfile(section.film.surface, "#dce8e2", 1);
+    strokeProfile(section.film.top, "#ffb08f", 2);
 
-    const cursorX = margin.left + (cursorIndex + 0.5) * columnWidth;
+    const cursorCanvasX = margin.left + (cursorIndex + 0.5) * columnWidth;
+    const cursorSurfaceY = mapY(section.film.surface[cursorIndex]);
+    const cursorTopY = mapY(section.film.top[cursorIndex]);
     context.strokeStyle = "#d9ff43";
     context.setLineDash([6, 5]);
-    context.beginPath(); context.moveTo(cursorX, margin.top); context.lineTo(cursorX, height - margin.bottom); context.stroke();
+    context.beginPath(); context.moveTo(cursorCanvasX, margin.top); context.lineTo(cursorCanvasX, height - margin.bottom); context.stroke();
     context.setLineDash([]);
+    context.lineWidth = 2;
+    context.beginPath(); context.moveTo(cursorCanvasX, cursorTopY); context.lineTo(cursorCanvasX, cursorSurfaceY); context.stroke();
+    context.fillStyle = "#d9ff43";
+    for (const y of [cursorTopY, cursorSurfaceY]) {
+      context.beginPath(); context.arc(cursorCanvasX, y, compact ? 2 : 3, 0, 2 * Math.PI); context.fill();
+    }
+    const labelWidth = compact ? 70 : 88;
+    const labelX = cursorCanvasX + labelWidth + 10 > width - margin.right ? cursorCanvasX - labelWidth - 8 : cursorCanvasX + 8;
+    const labelY = Math.max(margin.top + 5, cursorTopY - 23);
+    context.fillStyle = "rgba(7,16,13,.9)";
+    context.fillRect(labelX, labelY, labelWidth, compact ? 16 : 20);
+    context.fillStyle = "#d9ff43";
+    context.fillText(`${section.film.localThickness[cursorIndex].toFixed(1)} nm`, labelX + 5, labelY + (compact ? 11 : 14));
 
     context.fillStyle = "#87928a";
     context.textAlign = "center";
-    for (let tick = 0; tick <= 4; tick += 1) {
-      const x = margin.left + (tick / 4) * plotWidth;
-      context.fillText(`${(xMin + (tick / 4) * viewWidth).toFixed(1)} µm`, x, height - 23);
+    const horizontalTicks = compact ? 2 : 4;
+    for (let tick = 0; tick <= horizontalTicks; tick += 1) {
+      const x = margin.left + (tick / horizontalTicks) * plotWidth;
+      context.fillText(`${(xMin + (tick / horizontalTicks) * viewWidth).toFixed(1)}`, x, height - (compact ? 15 : 23));
     }
     context.textAlign = "left";
+    context.fillStyle = "#87928a";
+    context.fillText("z (nm)", 8, margin.top - 10);
+    context.textAlign = "right";
+    context.fillText("x (µm)", width - margin.right, height - 4);
+    context.textAlign = "left";
     context.fillStyle = "#d9ff43";
-    context.fillText(`Vertical scale exaggerated · section y = ${sliceY.toFixed(2)} µm`, margin.left, 22);
+    context.fillText(compact
+      ? `y = ${sliceY.toFixed(2)} µm · z ×${verticalExaggeration.toFixed(0)}`
+      : `Section y = ${sliceY.toFixed(2)} µm · vertical exaggeration ×${verticalExaggeration.toFixed(0)}`,
+    margin.left, 20);
   }, [section, cursorIndex, sliceY, xMin, viewWidth, canvasCssWidth]);
 
   async function loadGds(event: ChangeEvent<HTMLInputElement>) {
@@ -220,11 +256,11 @@ export default function SpinCoatPage() {
 
   function exportModel() {
     const data = {
-      schema: "spincoatsim-model/v1",
+      schema: "spincoatsim-model/v2",
       source: { fileName, topCell, sliceYMicrometers: sliceY, centreXMicrometers: centreX, widthMicrometers: viewWidth },
       stack: { substrateThicknessNm: substrateThickness, layers },
-      coating: { referenceThicknessNm: referenceThickness, referenceRpm, rpm, exponent, shrinkagePercent: shrinkage, planarizationPercent: planarization, predictedFinalThicknessNm: finalThickness },
-      result: { minimumThicknessNm: section.film.minimumThicknessNm, meanThicknessNm: section.film.meanThicknessNm, maximumThicknessNm: section.film.maximumThicknessNm },
+      coating: { referenceThicknessNm: referenceThickness, referenceRpm, rpm, exponent, shrinkagePercent: shrinkage, levelingStrengthPercent: levelingStrength, levelingLengthMicrometers: levelingLength, predictedFinalThicknessNm: finalThickness },
+      result: { minimumThicknessNm: section.film.minimumThicknessNm, meanThicknessNm: section.film.meanThicknessNm, maximumThicknessNm: section.film.maximumThicknessNm, degreeOfPlanarizationPercent: section.film.degreeOfPlanarizationPercent, thicknessNonUniformityPercent: section.film.thicknessNonUniformityPercent },
     };
     saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "spincoat-model.json");
   }
@@ -296,9 +332,11 @@ export default function SpinCoatPage() {
               <label>Simulated speed <span>rpm</span><input type="number" min="1" value={rpm} onChange={(event) => setRpm(bounded(Number(event.target.value), rpm, 1, 100000))} /></label>
               <label>Exponent n<input type="number" min="0" max="2" step="0.05" value={exponent} onChange={(event) => setExponent(bounded(Number(event.target.value), exponent, 0, 2))} /></label>
               <label>Shrinkage <span>%</span><input type="number" min="0" max="95" value={shrinkage} onChange={(event) => setShrinkage(bounded(Number(event.target.value), shrinkage, 0, 95))} /></label>
-              <label>Planarization <span>{planarization}%</span><input className="spin-range" type="range" min="0" max="100" value={planarization} onChange={(event) => setPlanarization(Number(event.target.value))} /></label>
+              <label>Leveling strength <span>{levelingStrength}%</span><input className="spin-range" type="range" min="0" max="100" value={levelingStrength} onChange={(event) => setLevelingStrength(Number(event.target.value))} /></label>
+              <label className="full-width">Lateral leveling length <span>µm</span><input type="number" min="0" step="0.5" value={levelingLength} onChange={(event) => setLevelingLength(bounded(Number(event.target.value), levelingLength, 0, 1e6))} /></label>
             </div>
             <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
+            <p className="spin-note">The leveling length sets the lateral distance over which the free surface responds to topography. Fit it to profilometry rather than treating it as a material constant.</p>
           </section>
         </aside>
 
@@ -325,6 +363,8 @@ export default function SpinCoatPage() {
             <article><p>AFTER SHRINKAGE</p><strong>{finalThickness.toFixed(1)} nm</strong></article>
             <article><p>LOCAL RANGE</p><strong>{section.film.minimumThicknessNm.toFixed(1)}–{section.film.maximumThicknessNm.toFixed(1)} nm</strong></article>
             <article><p>MEAN / MASS CHECK</p><strong>{section.film.meanThicknessNm.toFixed(1)} nm</strong></article>
+            <article><p>PLANARIZATION (DOP)</p><strong>{section.film.degreeOfPlanarizationPercent.toFixed(1)}%</strong></article>
+            <article><p>THICKNESS NON-UNIFORMITY</p><strong>{section.film.thicknessNonUniformityPercent.toFixed(1)}%</strong></article>
           </div>
 
           <div className="spin-legend">
@@ -335,7 +375,7 @@ export default function SpinCoatPage() {
 
           <aside className="spin-validity">
             <b>Model boundary</b>
-            <p>RPM scaling is empirical and should be fitted to your sol. Planarization interpolates geometrically between conformal coverage and a level free surface while conserving coating area; it does not solve solvent evaporation, capillary edge bead, dewetting or gel chemistry.</p>
+            <p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>
             {section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}
           </aside>
         </section>

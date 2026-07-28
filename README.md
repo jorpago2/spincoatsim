@@ -9,10 +9,11 @@ Public web: https://jorpago2.github.io/spincoatsim/
 - Imports GDSII locally and selects a horizontal section through any polygon layer.
 - Builds uniform, patterned and etched material stacks.
 - Estimates dry film thickness from a measured power-law RPM calibration.
-- Applies annealing shrinkage and an area-conserving planarization model.
+- Applies annealing shrinkage and finite-range, area-conserving lateral leveling.
+- Reports local thickness, degree of planarization (DOP) and thickness non-uniformity.
 - Exports the section as PNG and the complete model as JSON.
 
-The planarization control is a geometric interpolation, not CFD. It deliberately omits solvent transport, edge bead, dewetting, capillary instabilities and sol-gel reaction kinetics.
+The leveling model is a Gaussian geometric surrogate, not CFD. Its lateral length must be fitted to measured profiles; it deliberately omits centrifugal flow, solvent transport, edge bead, dewetting, capillary instabilities and sol-gel reaction kinetics.
 
 ## Run locally
 
