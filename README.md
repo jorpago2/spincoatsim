@@ -2,6 +2,8 @@
 
 Browser-based GDS cross-section and spin-coating geometry simulator for low-cost microfabrication.
 
+Public web: https://jorpago2.github.io/spincoatsim/
+
 ## Scope
 
 - Imports GDSII locally and selects a horizontal section through any polygon layer.
@@ -21,3 +23,5 @@ pnpm install
 pnpm dev
 pnpm test
 ```
+
+Every push to `main` is published automatically with GitHub Pages.
