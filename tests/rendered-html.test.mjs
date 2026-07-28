@@ -13,6 +13,7 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(html, /AZ 4562/);
   assert.match(html, /AZ ECI 3012/);
   assert.match(html, /TI 35E/);
+  assert.match(html, /Metal oxides/);
   assert.match(html, /All polarities/);
   assert.match(html, /All brands/);
   assert.match(html, /SiO₂/);

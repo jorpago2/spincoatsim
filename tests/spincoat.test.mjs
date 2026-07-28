@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { filterMetalOxides, METAL_OXIDE_PRESETS } from "../lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_PRESETS } from "../lib/photoresists.js";
 import { buildMaterialColumns, buildSpinFilm, calibratedThickness, polygonIntervalsAtY, sampleIntervals } from "../lib/spincoat.js";
 
@@ -16,6 +17,19 @@ test("photoresist references are complete and physically valid", () => {
   assert.ok(negativeKayaku.every((preset) => preset.tone.startsWith("Negative") && preset.manufacturer === "Kayaku"));
   assert.deepEqual(filterPhotoresists("Image reversal", "AZ / Merck").map(({ id }) => id), ["az-5214e"]);
   assert.deepEqual(filterPhotoresists("Image reversal", "TI / MicroChemicals").map(({ id }) => id), ["ti-35e"]);
+});
+
+test("metal-oxide references identify a reproducible published process", () => {
+  assert.equal(METAL_OXIDE_PRESETS.length, 7);
+  assert.equal(new Set(METAL_OXIDE_PRESETS.map(({ id }) => id)).size, METAL_OXIDE_PRESETS.length);
+  for (const preset of METAL_OXIDE_PRESETS) {
+    assert.ok(preset.referenceThicknessNm > 0);
+    assert.ok(preset.referenceRpm > 0);
+    assert.ok(preset.spinSeconds > 0);
+    assert.ok(preset.cycles > 0);
+    assert.match(preset.sourceUrl, /^https:\/\//);
+  }
+  assert.deepEqual(filterMetalOxides("VO₂").map(({ id }) => id), ["vo2-chae-2006"]);
 });
 
 test("builds an area-conserving coated cross-section from a GDS slice", () => {
