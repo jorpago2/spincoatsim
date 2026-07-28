@@ -63,7 +63,7 @@ export default function SpinCoatPage() {
   const [viewWidth, setViewWidth] = useState(100);
   const [substrateThickness, setSubstrateThickness] = useState(700);
   const [layers, setLayers] = useState<StackLayer[]>([
-    { id: 1, name: "SiOâ‚‚", mode: "uniform", thicknessNm: 300, gdsLayer: 1, color: "#75b9c8" },
+    { id: 1, name: "SiO₂", mode: "uniform", thicknessNm: 300, gdsLayer: 1, color: "#75b9c8" },
     { id: 2, name: "Ti/Au", mode: "patterned", thicknessNm: 120, gdsLayer: 1, color: "#f0b84a" },
   ]);
   const [referenceThickness, setReferenceThickness] = useState(180);
@@ -73,9 +73,16 @@ export default function SpinCoatPage() {
   const [shrinkage, setShrinkage] = useState(25);
   const [planarization, setPlanarization] = useState(65);
   const [cursorIndex, setCursorIndex] = useState(Math.floor(RESOLUTION / 2));
+  const [canvasCssWidth, setCanvasCssWidth] = useState(1200);
   const [error, setError] = useState("");
 
-  useEffect(() => { document.title = "SpinCoatSim Â· GDS cross-section coating model"; }, []);
+  useEffect(() => {
+    const element = canvas.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setCanvasCssWidth(Math.max(1, Math.round(entry.contentRect.width))));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const availableLayers = useMemo(() => [...new Set(shapes.map((shape) => shape.layer))].sort((a, b) => a - b), [shapes]);
   const xMin = centreX - viewWidth / 2;
@@ -104,12 +111,14 @@ export default function SpinCoatPage() {
   useEffect(() => {
     const element = canvas.current;
     if (!element) return;
-    const width = 1200;
-    const height = 650;
-    element.width = width;
-    element.height = height;
+    const width = canvasCssWidth;
+    const height = Math.round(width * 650 / 1200);
+    const pixelRatio = window.devicePixelRatio || 1;
+    element.width = Math.round(width * pixelRatio);
+    element.height = Math.round(height * pixelRatio);
     const context = element.getContext("2d");
     if (!context) return;
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.fillStyle = "#07100d";
     context.fillRect(0, 0, width, height);
 
@@ -162,12 +171,12 @@ export default function SpinCoatPage() {
     context.textAlign = "center";
     for (let tick = 0; tick <= 4; tick += 1) {
       const x = margin.left + (tick / 4) * plotWidth;
-      context.fillText(`${(xMin + (tick / 4) * viewWidth).toFixed(1)} Âµm`, x, height - 23);
+      context.fillText(`${(xMin + (tick / 4) * viewWidth).toFixed(1)} µm`, x, height - 23);
     }
     context.textAlign = "left";
     context.fillStyle = "#d9ff43";
-    context.fillText(`Vertical scale exaggerated Â· section y = ${sliceY.toFixed(2)} Âµm`, margin.left, 22);
-  }, [section, cursorIndex, sliceY, xMin, viewWidth]);
+    context.fillText(`Vertical scale exaggerated · section y = ${sliceY.toFixed(2)} µm`, margin.left, 22);
+  }, [section, cursorIndex, sliceY, xMin, viewWidth, canvasCssWidth]);
 
   async function loadGds(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -234,13 +243,13 @@ export default function SpinCoatPage() {
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           SPINCOAT<span>SIM</span>
         </Link>
-        <p>GDS cross-section Â· calibrated geometric model</p>
+        <p>GDS cross-section · calibrated geometric model</p>
         <span className="device-pill"><span />Local processing</span>
       </header>
 
       <section className="spin-hero">
         <div>
-          <p className="eyebrow">PROCESS EMULATION / SOLâ€“GEL</p>
+          <p className="eyebrow">PROCESS EMULATION / SOL–GEL</p>
           <h1>See where the <em>coating</em> goes.</h1>
         </div>
         <p>Import a GDS, define the existing stack and inspect a section after spin coating. Thickness follows your measured RPM calibration; topography redistribution is an area-conserving geometric approximation.</p>
@@ -256,11 +265,11 @@ export default function SpinCoatPage() {
             <input ref={fileInput} type="file" accept=".gds,.gdsii" hidden onChange={loadGds} />
             {error && <p className="spin-error" role="alert">{error}</p>}
             <div className="settings-grid spin-fields">
-              <label>Section Y <span>Âµm</span><input type="number" value={sliceY} step="0.1" onChange={(event) => setSliceY(Number(event.target.value))} /></label>
-              <label>Centre X <span>Âµm</span><input type="number" value={centreX} step="0.1" onChange={(event) => setCentreX(Number(event.target.value))} /></label>
-              <label className="full-width">Displayed width <span>Âµm</span><input type="number" value={viewWidth} min="0.1" onChange={(event) => setViewWidth(bounded(Number(event.target.value), viewWidth, 0.1, 1e6))} /></label>
+              <label>Section Y <span>µm</span><input type="number" value={sliceY} step="0.1" onChange={(event) => setSliceY(Number(event.target.value))} /></label>
+              <label>Centre X <span>µm</span><input type="number" value={centreX} step="0.1" onChange={(event) => setCentreX(Number(event.target.value))} /></label>
+              <label className="full-width">Displayed width <span>µm</span><input type="number" value={viewWidth} min="0.1" onChange={(event) => setViewWidth(bounded(Number(event.target.value), viewWidth, 0.1, 1e6))} /></label>
             </div>
-            <p className="spin-note">Cell {topCell} Â· layers {availableLayers.join(", ") || "none"}. The section currently intersects polygon geometry.</p>
+            <p className="spin-note">Cell {topCell} · layers {availableLayers.join(", ") || "none"}. The section currently intersects polygon geometry.</p>
           </section>
 
           <section className="spin-control-section">
@@ -268,7 +277,7 @@ export default function SpinCoatPage() {
             <label className="spin-single-field">Displayed substrate depth <span>nm</span><input type="number" min="10" value={substrateThickness} onChange={(event) => setSubstrateThickness(bounded(Number(event.target.value), substrateThickness, 10, 1e6))} /></label>
             <div className="spin-layer-list">
               {layers.map((layer, index) => <article className="spin-layer" key={layer.id}>
-                <div className="spin-layer-head"><i style={{ background: layer.color }} /><b>{index + 1}</b><input aria-label={`Layer ${index + 1} name`} value={layer.name} onChange={(event) => changeLayer(layer.id, { name: event.target.value })} /><button aria-label={`Remove ${layer.name}`} onClick={() => setLayers((current) => current.filter((item) => item.id !== layer.id))}>Ã—</button></div>
+                <div className="spin-layer-head"><i style={{ background: layer.color }} /><b>{index + 1}</b><input aria-label={`Layer ${index + 1} name`} value={layer.name} onChange={(event) => changeLayer(layer.id, { name: event.target.value })} /><button aria-label={`Remove ${layer.name}`} onClick={() => setLayers((current) => current.filter((item) => item.id !== layer.id))}>×</button></div>
                 <div className="spin-layer-fields">
                   <label>Operation<select value={layer.mode} onChange={(event) => changeLayer(layer.id, { mode: event.target.value as LayerMode })}><option value="uniform">Uniform deposit</option><option value="patterned">Patterned deposit</option><option value="etch">Etch into stack</option></select></label>
                   <label>{layer.mode === "etch" ? "Depth" : "Thickness"}<input type="number" min="1" value={layer.thicknessNm} onChange={(event) => changeLayer(layer.id, { thicknessNm: bounded(Number(event.target.value), layer.thicknessNm, 1, 1e6) })} /></label>
@@ -289,7 +298,7 @@ export default function SpinCoatPage() {
               <label>Shrinkage <span>%</span><input type="number" min="0" max="95" value={shrinkage} onChange={(event) => setShrinkage(bounded(Number(event.target.value), shrinkage, 0, 95))} /></label>
               <label>Planarization <span>{planarization}%</span><input className="spin-range" type="range" min="0" max="100" value={planarization} onChange={(event) => setPlanarization(Number(event.target.value))} /></label>
             </div>
-            <p className="spin-equation">h = {referenceThickness} Â· ({rpm}/{referenceRpm})<sup>âˆ’{exponent}</sup> Â· (1 âˆ’ {shrinkage}/100)</p>
+            <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
           </section>
         </aside>
 
@@ -300,6 +309,8 @@ export default function SpinCoatPage() {
           </div>
           <canvas
             ref={canvas}
+            width={1200}
+            height={650}
             className="spin-canvas"
             aria-label="Simulated material stack cross-section and spin-coated film"
             onMouseMove={(event) => {
@@ -307,19 +318,19 @@ export default function SpinCoatPage() {
               setCursorIndex(Math.max(0, Math.min(RESOLUTION - 1, Math.floor(((event.clientX - rectangle.left) / rectangle.width) * RESOLUTION))));
             }}
           />
-          <div className="spin-readout"><span>x = {cursorX.toFixed(2)} Âµm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
+          <div className="spin-readout"><span>x = {cursorX.toFixed(2)} µm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
 
           <div className="spin-metrics">
             <article><p>CALIBRATED DRY FILM</p><strong>{dryThickness.toFixed(1)} nm</strong></article>
             <article><p>AFTER SHRINKAGE</p><strong>{finalThickness.toFixed(1)} nm</strong></article>
-            <article><p>LOCAL RANGE</p><strong>{section.film.minimumThicknessNm.toFixed(1)}â€“{section.film.maximumThicknessNm.toFixed(1)} nm</strong></article>
+            <article><p>LOCAL RANGE</p><strong>{section.film.minimumThicknessNm.toFixed(1)}–{section.film.maximumThicknessNm.toFixed(1)} nm</strong></article>
             <article><p>MEAN / MASS CHECK</p><strong>{section.film.meanThicknessNm.toFixed(1)} nm</strong></article>
           </div>
 
           <div className="spin-legend">
             <span><i style={{ background: "#5c6570" }} />Substrate</span>
             {layers.filter((layer) => layer.mode !== "etch").map((layer) => <span key={layer.id}><i style={{ background: layer.color }} />{layer.name}</span>)}
-            <span><i style={{ background: "#ff5a1f" }} />Spin-coated solâ€“gel</span>
+            <span><i style={{ background: "#ff5a1f" }} />Spin-coated sol–gel</span>
           </div>
 
           <aside className="spin-validity">
