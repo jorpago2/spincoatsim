@@ -20,7 +20,7 @@ test("photoresist references are complete and physically valid", () => {
 });
 
 test("metal-oxide references identify a reproducible published process", () => {
-  assert.equal(METAL_OXIDE_PRESETS.length, 7);
+  assert.equal(METAL_OXIDE_PRESETS.length, 9);
   assert.equal(new Set(METAL_OXIDE_PRESETS.map(({ id }) => id)).size, METAL_OXIDE_PRESETS.length);
   for (const preset of METAL_OXIDE_PRESETS) {
     assert.ok(preset.referenceThicknessNm > 0);
@@ -30,6 +30,8 @@ test("metal-oxide references identify a reproducible published process", () => {
     assert.match(preset.sourceUrl, /^https:\/\//);
   }
   assert.deepEqual(filterMetalOxides("VO₂").map(({ id }) => id), ["vo2-chae-2006"]);
+  assert.deepEqual(filterMetalOxides("In₂O₃").map(({ id }) => id), ["in2o3-kul-2017"]);
+  assert.deepEqual(filterMetalOxides("ITO").map(({ id }) => id), ["ito-jafari-2014"]);
 });
 
 test("builds an area-conserving coated cross-section from a GDS slice", () => {
