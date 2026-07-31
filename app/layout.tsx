@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://jorpago2.github.io/spincoatsim/"),
   title,
   description,
+  icons: { icon: "favicon.svg", shortcut: "favicon.svg" },
   openGraph: { title, description, images: [{ url: "og.png", width: 1536, height: 1024 }] },
   twitter: { card: "summary_large_image", title, description, images: ["og.png"] },
 };

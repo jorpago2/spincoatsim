@@ -5,6 +5,7 @@ import test from "node:test";
 test("exports the SpinCoatSim application", async () => {
   const html = await readFile(new URL("../out/index.html", import.meta.url), "utf8");
   assert.match(html, /<title>SpinCoatSim/);
+  assert.match(html, /favicon\.svg/);
   assert.match(html, /See where the/);
   assert.match(html, /LIVE CROSS-SECTION/);
   assert.match(html, /MICROPOSIT S1813/);
