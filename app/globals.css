@@ -34,10 +34,14 @@ select:focus, input:focus, button:focus-visible { border-color: var(--orange); o
 .settings-grid .full-width { grid-column: 1/-1; }
 
 .spin-app { min-height: 100vh; }
-.spin-hero { padding: 34px 4vw 30px; display: grid; grid-template-columns: minmax(0,1.35fr) minmax(300px,.65fr); gap: 6vw; align-items: end; border-bottom: 1px solid var(--line); }
-.spin-hero h1 { margin: 0; max-width: 800px; font-size: clamp(42px,5vw,72px); line-height: .9; letter-spacing: -.07em; }
+.spin-hero { padding: 44px 4vw 48px; display: grid; grid-template-columns: minmax(430px,760px) minmax(320px,500px); justify-content: space-between; gap: clamp(48px,8vw,150px); align-items: center; border-bottom: 1px solid var(--line); }
+.spin-hero h1 { margin: 0; font-size: clamp(52px,4.6vw,84px); line-height: .86; letter-spacing: -.075em; }
+.spin-hero h1 span, .spin-hero h1 em { display: block; }
 .spin-hero h1 em { color: var(--orange); font-style: normal; }
-.spin-hero > p { margin: 0; color: #4d4941; font-size: 13px; line-height: 1.6; }
+.spin-hero-summary { max-width: 500px; padding: 22px 0 22px 24px; border-left: 3px solid var(--orange); }
+.spin-hero-summary p { margin: 0; color: #4d4941; font-size: 14px; line-height: 1.65; }
+.spin-hero-summary .spin-hero-flow { margin-bottom: 12px; color: var(--ink); font: 800 10px/1 monospace; letter-spacing: .11em; }
+.spin-hero-flow span { padding: 0 8px; color: var(--orange); }
 .spin-workspace { display: grid; grid-template-columns: minmax(360px,440px) minmax(0,1fr); min-height: 900px; }
 .spin-controls { background: var(--panel); border-right: 1px solid var(--line); }
 .spin-control-section { padding: 27px 26px 28px 4vw; border-bottom: 1px solid var(--line); }
@@ -92,6 +96,8 @@ select:focus, input:focus, button:focus-visible { border-color: var(--orange); o
 @media (max-width: 900px) {
   .topbar > p { display: none; }
   .spin-hero, .spin-workspace { grid-template-columns: 1fr; }
+  .spin-hero { gap: 28px; }
+  .spin-hero-summary { max-width: 620px; }
   .spin-controls { border-right: 0; }
   .spin-control-section { padding-right: 4vw; }
   .spin-preview { padding-left: 4vw; }
@@ -101,7 +107,9 @@ select:focus, input:focus, button:focus-visible { border-color: var(--orange); o
   .topbar { padding: 0 20px; }
   .device-pill { font-size: 8px; }
   .spin-hero, .spin-control-section, .spin-preview { padding-left: 20px; padding-right: 20px; }
-  .spin-hero h1 { font-size: 38px; }
+  .spin-hero { padding-top: 32px; padding-bottom: 34px; }
+  .spin-hero h1 { font-size: 44px; }
+  .spin-hero-summary { padding: 15px 0 15px 18px; }
   .spin-preview-head { align-items: flex-start; flex-direction: column; }
   .spin-layer-fields, .spin-metrics { grid-template-columns: 1fr 1fr; }
 }

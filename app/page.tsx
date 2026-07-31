@@ -313,9 +313,12 @@ export default function SpinCoatPage() {
       <section className="spin-hero">
         <div>
           <p className="eyebrow">PROCESS EMULATION / SOL–GEL</p>
-          <h1>See where the <em>coating</em> goes.</h1>
+          <h1><span>See where the</span><em>coating goes.</em></h1>
         </div>
-        <p>Import a GDS, define the existing stack and inspect a section after spin coating. Thickness follows your measured RPM calibration; topography redistribution is an area-conserving geometric approximation.</p>
+        <div className="spin-hero-summary">
+          <p className="spin-hero-flow">GDS <span>→</span> STACK <span>→</span> FILM PROFILE</p>
+          <p>Import a GDS, define the existing stack and inspect a section after spin coating. Thickness follows your measured RPM calibration; topography redistribution uses an area-conserving geometric model.</p>
+        </div>
       </section>
 
       <section className="spin-workspace">
