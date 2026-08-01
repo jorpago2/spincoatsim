@@ -26,3 +26,7 @@ pnpm test
 ```
 
 Every push to `main` is published automatically with GitHub Pages.
+
+## Citation
+
+If you use this software in a scientific publication, please cite the exact version used. Citation metadata are provided in [`CITATION.cff`](CITATION.cff); GitHub's **Cite this repository** menu exports them in BibTeX and APA formats.
