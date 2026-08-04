@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import "./styles.css";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -302,10 +302,10 @@ export default function SpinCoatPage() {
   return (
     <main className="spin-app">
       <header className="topbar">
-        <Link className="brand" href="/" aria-label="SpinCoatSim home">
+        <a className="brand" href="/spincoatsim/" aria-label="SpinCoatSim home">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           SPINCOAT<span>SIM</span>
-        </Link>
+        </a>
         <p>GDS cross-section · calibrated geometric model</p>
         <span className="device-pill"><span />Local processing</span>
       </header>

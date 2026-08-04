@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("exports the SpinCoatSim application", async () => {
-  const html = await readFile(new URL("../out/index.html", import.meta.url), "utf8");
+  const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
   assert.match(html, /<title>SpinCoatSim/);
   assert.match(html, /favicon\.svg/);
   assert.match(html, /See where the/);
