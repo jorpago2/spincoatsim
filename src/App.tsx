@@ -301,6 +301,7 @@ export default function SpinCoatPage() {
 
   return (
     <main className="spin-app">
+      <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
       <header className="topbar">
         <a className="brand" href="/spincoatsim/" aria-label="SpinCoatSim home">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
@@ -321,7 +322,7 @@ export default function SpinCoatPage() {
         </div>
       </section>
 
-      <section className="spin-workspace">
+      <section className="spin-workspace" id="spin-workspace" tabIndex={-1}>
         <aside className="spin-controls">
           <section className="spin-control-section">
             <div className="step-heading"><span>01</span><div><p>GEOMETRY</p><h2>GDS section</h2></div></div>
