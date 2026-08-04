@@ -309,6 +309,7 @@ export default function SpinCoatPage() {
         </a>
         <p>GDS cross-section · calibrated geometric model</p>
         <span className="device-pill"><span />Local processing</span>
+        <a className="suite-link" href="https://jorpago2.github.io/" aria-label="Online Simulators & Tools">All tools</a>
       </header>
 
       <section className="spin-hero">
