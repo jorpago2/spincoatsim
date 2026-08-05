@@ -4,16 +4,19 @@ import test from "node:test";
 
 test("exports the SpinCoatSim application", async () => {
   const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
+  const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
   assert.match(html, /<title>SpinCoatSim/);
   assert.match(html, /favicon\.svg/);
   for (const metadata of ["theme-color", "canonical", "og:site_name", "og:url", "og:image:alt", "twitter:title", "twitter:description", "twitter:image:alt"]) {
     assert.match(html, new RegExp(metadata));
   }
-  assert.match(html, /See where the/);
+  assert.match(html, /Capabilities and model scope/);
+  assert.match(html, /No coating profile yet/);
+  assert.match(html, /Load example/);
   assert.match(html, /href="#spin-workspace"/);
   assert.match(html, /id="spin-workspace"/);
   assert.match(html, /href="https:\/\/jorpago2\.github\.io\/"/);
-  assert.match(html, /LIVE CROSS-SECTION/);
+  assert.match(html, /COATING RESULT/);
   assert.match(html, /MICROPOSIT S1813/);
   assert.match(html, /SU-8 2002/);
   assert.match(html, /KMPR 1010/);
@@ -29,4 +32,5 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(html, /µm/);
   assert.doesNotMatch(html, /Â|Ã|â/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview/);
+  assert.match(source, /useState<GdsShape\[]>\(\[\]\)/);
 });

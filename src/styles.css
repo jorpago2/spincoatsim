@@ -39,21 +39,28 @@ select:focus, input:focus, button:focus-visible { border-color: var(--orange); o
 .settings-grid .full-width { grid-column: 1/-1; }
 
 .spin-app { min-height: 100vh; }
-.spin-hero { padding: 28px 4vw 30px; display: grid; grid-template-columns: minmax(430px,760px) minmax(320px,500px); justify-content: space-between; gap: clamp(32px,6vw,96px); align-items: center; border-bottom: 1px solid var(--line); }
-.spin-hero h1 { margin: 0; font-size: clamp(42px,3.6vw,60px); line-height: .9; letter-spacing: -.075em; }
-.spin-hero h1 span, .spin-hero h1 em { display: block; }
-.spin-hero h1 em { color: var(--orange); font-style: normal; }
-.spin-hero-summary { max-width: 500px; padding: 14px 0 14px 20px; border-left: 3px solid var(--orange); }
-.spin-hero-summary p { margin: 0; color: #4d4941; font-size: 14px; line-height: 1.65; }
-.spin-hero-summary .spin-hero-flow { margin-bottom: 12px; color: var(--ink); font: 800 10px/1 monospace; letter-spacing: .11em; }
+.spin-tool-heading { padding: 20px 4vw; display: grid; grid-template-columns: minmax(320px,760px) minmax(280px,500px); justify-content: space-between; gap: clamp(28px,5vw,72px); align-items: center; border-bottom: 1px solid var(--line); }
+.spin-tool-heading h1 { margin: 0; font-size: clamp(30px,3vw,42px); line-height: 1; letter-spacing: -.06em; }
+.spin-tool-heading > div > p:last-child { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+.spin-tool-about { margin: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.spin-tool-about summary { padding: 12px 0; cursor: pointer; font-size: 13px; font-weight: 800; }
+.spin-tool-about > p { margin: 0 0 12px; color: #4d4941; font-size: 13px; line-height: 1.55; }
+.spin-tool-about .spin-hero-flow { color: var(--ink); font: 800 10px/1 monospace; letter-spacing: .11em; }
 .spin-hero-flow span { padding: 0 8px; color: var(--orange); }
 .spin-workspace { display: grid; grid-template-columns: minmax(360px,440px) minmax(0,1fr); min-height: 900px; }
 .spin-controls { background: var(--panel); border-right: 1px solid var(--line); }
 .spin-control-section { padding: 27px 26px 28px 4vw; border-bottom: 1px solid var(--line); }
+.spin-disclosure > summary { display: flex; align-items: center; gap: 14px; cursor: pointer; list-style: none; }
+.spin-disclosure > summary::-webkit-details-marker { display: none; }
+.spin-disclosure > summary > span { width: 31px; height: 31px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--orange); color: var(--orange); font: 800 12px/1 monospace; }
+.spin-disclosure > summary p { margin: 0 0 2px; color: var(--muted); font: 700 9px/1 monospace; letter-spacing: .14em; }
+.spin-disclosure > summary h2 { margin: 0; font-size: 18px; letter-spacing: -.035em; }
+.spin-disclosure[open] > summary { margin-bottom: 16px; }
 .spin-upload { width: 100%; min-height: 76px; display: grid; place-content: center; gap: 5px; border: 1.5px dashed #aaa397; background: #eeebe3; cursor: pointer; }
 .spin-upload:hover { border-color: var(--orange); background: #fff5ec; }
 .spin-upload b { max-width: 300px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .spin-upload span { color: var(--muted); font-size: 9px; }
+.spin-example { width: 100%; min-height: 36px; margin-top: 8px; border: 1px solid var(--line); background: transparent; cursor: pointer; font-size: 10px; font-weight: 800; }
 .spin-error { margin: 8px 0 0; color: #a52f1b; font-size: 10px; }
 .spin-fields { margin-top: 14px; }
 .spin-fields label, .spin-single-field, .spin-layer-fields label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
@@ -97,6 +104,9 @@ select:focus, input:focus, button:focus-visible { border-color: var(--orange); o
 .spin-validity b { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .spin-validity p { margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .spin-validity .spin-warning { color: #a84a28; font-weight: 700; }
+.spin-empty-state { min-height: 60vh; display: grid; place-content: center; text-align: center; }
+.spin-empty-state strong { font-size: 1.25rem; }
+.spin-empty-state p { max-width: 430px; margin: 8px 0 0; color: var(--muted); line-height: 1.6; }
 
 @media (max-width: 900px) {
   button, [role="button"], select, input:not([type="range"]):not([type="file"]), .suite-link { min-height: 44px; }
@@ -104,9 +114,9 @@ select:focus, input:focus, button:focus-visible { border-color: var(--orange); o
   .spin-layer-fields select, .spin-layer-fields input, .spin-add, .spin-actions button { min-height: 44px; height: 44px; }
   .spin-range { min-height: 44px; }
   .topbar > p { display: none; }
-  .spin-hero, .spin-workspace { grid-template-columns: 1fr; }
-  .spin-hero { gap: 28px; }
-  .spin-hero-summary { max-width: 620px; }
+  .spin-tool-heading, .spin-workspace { grid-template-columns: 1fr; }
+  .spin-tool-heading { gap: 20px; }
+  .spin-tool-about { max-width: 620px; }
   .spin-controls { border-right: 0; }
   .spin-control-section { padding-right: 4vw; }
   .spin-preview { padding-left: 4vw; }
@@ -116,10 +126,9 @@ select:focus, input:focus, button:focus-visible { border-color: var(--orange); o
   .topbar { gap: 12px; padding: 0 20px; }
   .device-pill { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; font-size: 0; }
   .device-pill span { margin-right: 0; }
-  .spin-hero, .spin-control-section, .spin-preview { padding-left: 20px; padding-right: 20px; }
-  .spin-hero { padding: 24px 20px 26px; }
-  .spin-hero h1 { font-size: clamp(34px,10vw,40px); }
-  .spin-hero-summary { padding: 14px 0 14px 18px; }
+  .spin-tool-heading, .spin-control-section, .spin-preview { padding-left: 20px; padding-right: 20px; }
+  .spin-tool-heading { padding-top: 18px; padding-bottom: 18px; }
+  .spin-tool-heading h1 { font-size: clamp(28px,9vw,36px); }
   .spin-preview-head { align-items: flex-start; flex-direction: column; }
   .spin-layer-fields, .spin-metrics { grid-template-columns: 1fr 1fr; }
 }

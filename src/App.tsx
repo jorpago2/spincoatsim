@@ -59,9 +59,9 @@ function saveBlob(blob: Blob, name: string) {
 export default function SpinCoatPage() {
   const fileInput = useRef<HTMLInputElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [shapes, setShapes] = useState<GdsShape[]>(DEMO_SHAPES);
-  const [fileName, setFileName] = useState("demo-topography.gds");
-  const [topCell, setTopCell] = useState("DEMO");
+  const [shapes, setShapes] = useState<GdsShape[]>([]);
+  const [fileName, setFileName] = useState("");
+  const [topCell, setTopCell] = useState("");
   const [sliceY, setSliceY] = useState(0);
   const [centreX, setCentreX] = useState(0);
   const [viewWidth, setViewWidth] = useState(100);
@@ -93,7 +93,7 @@ export default function SpinCoatPage() {
     const observer = new ResizeObserver(([entry]) => setCanvasCssWidth(Math.max(1, Math.round(entry.contentRect.width))));
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [shapes.length]);
 
   const availableLayers = useMemo(() => [...new Set(shapes.map((shape) => shape.layer))].sort((a, b) => a - b), [shapes]);
   const photoresistPreset = coatingLibrary === "photoresist" ? PHOTORESIST_PRESETS.find((preset) => preset.id === coatingPresetId) : undefined;
@@ -108,7 +108,8 @@ export default function SpinCoatPage() {
   const dryThickness = calibratedThickness(referenceThickness, referenceRpm, rpm, exponent);
   const finalThickness = dryThickness * (1 - shrinkage / 100);
 
-  const section = useMemo<SectionResult>(() => {
+  const section = useMemo<SectionResult | null>(() => {
+    if (!shapes.length) return null;
     const slices = layers.map((layer) => polygonIntervalsAtY(shapes, layer.gdsLayer, sliceY));
     const preparedLayers = layers.map((layer, index) => ({
       ...layer,
@@ -128,7 +129,7 @@ export default function SpinCoatPage() {
 
   useEffect(() => {
     const element = canvas.current;
-    if (!element) return;
+    if (!element || !section) return;
     const width = canvasCssWidth;
     const height = Math.round(width * 650 / 1200);
     const pixelRatio = window.devicePixelRatio || 1;
@@ -253,6 +254,16 @@ export default function SpinCoatPage() {
     }
   }
 
+  function loadDemo() {
+    setShapes(DEMO_SHAPES);
+    setFileName("demo-topography.gds");
+    setTopCell("DEMO");
+    setSliceY(0);
+    setCentreX(0);
+    setViewWidth(100);
+    setError("");
+  }
+
   function changeLayer(id: number, patch: Partial<StackLayer>) {
     setLayers((current) => current.map((layer) => layer.id === id ? { ...layer, ...patch } : layer));
   }
@@ -282,6 +293,7 @@ export default function SpinCoatPage() {
   }
 
   function exportModel() {
+    if (!section) return;
     const data = {
       schema: "spincoatsim-model/v2",
       source: { fileName, topCell, sliceYMicrometers: sliceY, centreXMicrometers: centreX, widthMicrometers: viewWidth },
@@ -296,7 +308,7 @@ export default function SpinCoatPage() {
     canvas.current?.toBlob((blob) => { if (blob) saveBlob(blob, "spincoat-section.png"); }, "image/png");
   }
 
-  const localThickness = section.film.localThickness[Math.max(0, Math.min(RESOLUTION - 1, cursorIndex))];
+  const localThickness = section?.film.localThickness[Math.max(0, Math.min(RESOLUTION - 1, cursorIndex))] ?? 0;
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
 
   return (
@@ -312,15 +324,17 @@ export default function SpinCoatPage() {
         <a className="suite-link" href="https://jorpago2.github.io/" aria-label="Online Simulators & Tools">All tools</a>
       </header>
 
-      <section className="spin-hero">
+      <section className="spin-tool-heading">
         <div>
           <p className="eyebrow">PROCESS EMULATION / SOL–GEL</p>
-          <h1><span>See where the</span><em>coating goes.</em></h1>
+          <h1>SpinCoatSim</h1>
+          <p>Load a GDS cross-section and inspect the coating profile when needed.</p>
         </div>
-        <div className="spin-hero-summary">
+        <details className="spin-tool-about">
+          <summary>Capabilities and model scope</summary>
           <p className="spin-hero-flow">GDS <span>→</span> STACK <span>→</span> FILM PROFILE</p>
           <p>Import a GDS, define the existing stack and inspect a section after spin coating. Thickness follows your measured RPM calibration; topography redistribution uses an area-conserving geometric model.</p>
-        </div>
+        </details>
       </section>
 
       <section className="spin-workspace" id="spin-workspace" tabIndex={-1}>
@@ -328,8 +342,9 @@ export default function SpinCoatPage() {
           <section className="spin-control-section">
             <div className="step-heading"><span>01</span><div><p>GEOMETRY</p><h2>GDS section</h2></div></div>
             <button className="spin-upload" onClick={() => fileInput.current?.click()}>
-              <b>{fileName}</b><span>Choose a local .gds file</span>
+              <b>{fileName || "No GDS loaded"}</b><span>Choose a local .gds file</span>
             </button>
+            <button className="spin-example" type="button" onClick={loadDemo}>Load example</button>
             <input ref={fileInput} type="file" accept=".gds,.gdsii" hidden onChange={loadGds} />
             {error && <p className="spin-error" role="alert">{error}</p>}
             <div className="settings-grid spin-fields">
@@ -337,11 +352,11 @@ export default function SpinCoatPage() {
               <label>Centre X <span>µm</span><input type="number" value={centreX} step="0.1" onChange={(event) => setCentreX(Number(event.target.value))} /></label>
               <label className="full-width">Displayed width <span>µm</span><input type="number" value={viewWidth} min="0.1" onChange={(event) => setViewWidth(bounded(Number(event.target.value), viewWidth, 0.1, 1e6))} /></label>
             </div>
-            <p className="spin-note">Cell {topCell} · layers {availableLayers.join(", ") || "none"}. The section currently intersects polygon geometry.</p>
+            <p className="spin-note">{shapes.length ? `Cell ${topCell} · layers ${availableLayers.join(", ")}. The section currently intersects polygon geometry.` : "Load a GDS or the example to reveal the stack and coating result."}</p>
           </section>
 
-          <section className="spin-control-section">
-            <div className="step-heading"><span>02</span><div><p>STACK</p><h2>Existing materials</h2></div></div>
+          <details className="spin-control-section spin-disclosure">
+            <summary><span>02</span><div><p>STACK</p><h2>Existing materials</h2></div></summary>
             <label className="spin-single-field">Displayed substrate depth <span>nm</span><input type="number" min="10" value={substrateThickness} onChange={(event) => setSubstrateThickness(bounded(Number(event.target.value), substrateThickness, 10, 1e6))} /></label>
             <div className="spin-layer-list">
               {layers.map((layer, index) => <article className="spin-layer" key={layer.id}>
@@ -354,10 +369,10 @@ export default function SpinCoatPage() {
               </article>)}
             </div>
             <button className="spin-add" onClick={addLayer}>+ Add process layer</button>
-          </section>
+          </details>
 
-          <section className="spin-control-section">
-            <div className="step-heading"><span>03</span><div><p>SPIN COATING</p><h2>Calibrated film</h2></div></div>
+          <details className="spin-control-section spin-disclosure">
+            <summary><span>03</span><div><p>SPIN COATING</p><h2>Calibrated film</h2></div></summary>
             <div className="settings-grid spin-fields">
               <label className="full-width">Coating library<select value={coatingLibrary} onChange={(event) => { setCoatingLibrary(event.target.value as "photoresist" | "oxide"); setCoatingPresetId(""); }}><option value="photoresist">Photoresists</option><option value="oxide">Metal oxides</option></select></label>
               {coatingLibrary === "photoresist" ? <>
@@ -378,14 +393,15 @@ export default function SpinCoatPage() {
             {metalOxidePreset && <aside className="spin-reference" aria-live="polite"><b>{metalOxidePreset.family} · {metalOxidePreset.name}</b><span>{metalOxidePreset.precursor} on {metalOxidePreset.substrate}. {metalOxidePreset.cycles} coat(s), {metalOxidePreset.spinSeconds} s; {metalOxidePreset.thermalTreatment}. {metalOxidePreset.phase}.</span><span>{metalOxidePreset.evidence}. The loaded value is the published final dry thickness; n = 0.5 remains a generic extrapolation.</span><a href={metalOxidePreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</a></aside>}
             <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
-          </section>
+          </details>
         </aside>
 
         <section className="spin-preview">
           <div className="spin-preview-head">
-            <div><p>LIVE CROSS-SECTION</p><h2>{fileName}</h2></div>
-            <div className="spin-actions"><button onClick={exportPng}>Export PNG</button><button onClick={exportModel}>Export JSON</button></div>
+            <div><p>COATING RESULT</p><h2>{fileName || "No profile yet"}</h2></div>
+            {section && <div className="spin-actions"><button onClick={exportPng}>Export PNG</button><button onClick={exportModel}>Export JSON</button></div>}
           </div>
+          {section ? <>
           <canvas
             ref={canvas}
             width={1200}
@@ -419,6 +435,7 @@ export default function SpinCoatPage() {
             <p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>
             {section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}
           </aside>
+          </> : <div className="spin-empty-state"><strong>No coating profile yet</strong><p>Load a GDS file or the example to calculate and display the cross-section.</p></div>}
         </section>
       </section>
     </main>
