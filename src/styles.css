@@ -101,6 +101,8 @@ select:focus, input:focus, button:focus-visible { border-color: var(--orange); o
 @media (max-width: 900px) {
   button, [role="button"], select, input:not([type="range"]):not([type="file"]), .suite-link { min-height: 44px; }
   .spin-layer-head button { width: 44px; height: 44px; }
+  .spin-layer-fields select, .spin-layer-fields input, .spin-add, .spin-actions button { min-height: 44px; height: 44px; }
+  .spin-range { min-height: 44px; }
   .topbar > p { display: none; }
   .spin-hero, .spin-workspace { grid-template-columns: 1fr; }
   .spin-hero { gap: 28px; }
