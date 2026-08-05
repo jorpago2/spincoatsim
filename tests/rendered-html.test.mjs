@@ -6,6 +6,9 @@ test("exports the SpinCoatSim application", async () => {
   const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
   assert.match(html, /<title>SpinCoatSim/);
   assert.match(html, /favicon\.svg/);
+  for (const metadata of ["theme-color", "canonical", "og:site_name", "og:url", "og:image:alt", "twitter:title", "twitter:description", "twitter:image:alt"]) {
+    assert.match(html, new RegExp(metadata));
+  }
   assert.match(html, /See where the/);
   assert.match(html, /href="#spin-workspace"/);
   assert.match(html, /id="spin-workspace"/);
