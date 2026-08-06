@@ -325,7 +325,7 @@ export default function SpinCoatPage() {
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
 
   return (
-    <main className="spin-app">
+    <main className="spin-app min-h-dvh">
       <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
       <header className="topbar">
         <a className="brand" href="/spincoatsim/" aria-label="SpinCoatSim home">
