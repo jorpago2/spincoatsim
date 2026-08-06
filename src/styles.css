@@ -8,6 +8,26 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "../tokens.css";
 
+@theme inline {
+  --color-ui-canvas: var(--color-paper);
+  --color-ui-canvas-muted: var(--color-paper-2);
+  --color-ui-surface: var(--color-surface);
+  --color-ui-surface-raised: var(--color-surface-raised);
+  --color-ui-ink: var(--color-ink);
+  --color-ui-muted: var(--color-muted);
+  --color-ui-border: var(--color-rule);
+  --color-ui-border-strong: var(--color-rule-2);
+  --color-ui-accent: var(--color-accent);
+  --color-ui-focus: var(--color-focus);
+  --color-ui-danger: var(--color-danger);
+  --color-ui-success: var(--color-success);
+  --font-ui-body: var(--font-body);
+  --font-ui-display: var(--font-display);
+  --radius-ui-control: var(--radius-input);
+  --radius-ui-panel: var(--radius-card);
+  --shadow-ui-raised: var(--shadow-raised);
+}
+
 * { box-sizing: border-box; }
 html, body { overflow-x: clip; }
 html { scroll-behavior: smooth; }
@@ -83,15 +103,6 @@ input[data-state="success"] { border-color: var(--color-success); background: va
 }
 .skip-link:focus { transform: translateY(0); }
 
-.topbar {
-  min-height: 3.75rem;
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding-inline: var(--space-sm);
-  border-block-end: var(--rule-hair) solid var(--color-rule);
-  background: var(--color-surface);
-}
 .brand {
   min-height: 2.75rem;
   min-width: 0;
@@ -155,11 +166,6 @@ input[data-state="success"] { border-color: var(--color-success); background: va
   white-space: nowrap;
 }
 
-.spin-tool-heading {
-  padding: var(--space-md) var(--space-sm);
-  border-block-end: var(--rule-hair) solid var(--color-rule);
-  background: var(--color-paper);
-}
 .spin-tool-heading h1 {
   min-width: 0;
   margin: 0;
@@ -228,16 +234,8 @@ input[data-state="success"] { border-color: var(--color-success); background: va
   color: var(--color-accent-strong);
 }
 
-.spin-workspace {
-  min-width: 0;
-  min-height: calc(100dvh - 12rem);
-}
 .spin-workspace[data-mobile-panel="controls"] .spin-preview,
 .spin-workspace[data-mobile-panel="results"] .spin-controls { display: none; }
-.spin-controls {
-  min-width: 0;
-  background: var(--color-paper-2);
-}
 .spin-control-section {
   padding: var(--space-md) var(--space-sm);
   border-block-end: var(--rule-hair) solid var(--color-rule);
@@ -414,12 +412,6 @@ input[data-state="success"] { border-color: var(--color-success); background: va
   overflow-wrap: anywhere;
 }
 
-.spin-preview {
-  min-width: 0;
-  min-height: calc(100dvh - 12rem);
-  padding: var(--space-md) var(--space-sm) var(--space-lg);
-  background: var(--color-paper-2);
-}
 .spin-preview-head {
   display: grid;
   gap: var(--space-xs);
@@ -561,7 +553,6 @@ input[data-state="success"] { border-color: var(--color-success); background: va
 }
 
 @media (min-width: 40rem) {
-  .topbar { padding-inline: var(--space-md); }
   .topbar > p { display: block; }
   .device-pill {
     width: auto;
@@ -575,17 +566,9 @@ input[data-state="success"] { border-color: var(--color-success); background: va
     font-weight: 600;
     white-space: nowrap;
   }
-  .spin-tool-heading {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 30rem);
-    align-items: center;
-    gap: var(--space-lg);
-    padding-inline: var(--space-md);
-  }
   .spin-tool-about { margin-block-start: 0; }
   .spin-mobile-switcher { padding-inline: var(--space-md); }
   .spin-control-section,
-  .spin-preview { padding-inline: var(--space-md); }
   .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings-grid .full-width { grid-column: 1 / -1; }
   .spin-layer-fields { grid-template-columns: 1.4fr minmax(0, 1fr) minmax(0, 1fr); }
@@ -597,18 +580,10 @@ input[data-state="success"] { border-color: var(--color-success); background: va
 }
 
 @media (min-width: 60rem) {
-  .topbar,
-  .spin-tool-heading { padding-inline: clamp(var(--space-md), 4vw, var(--space-xl)); }
   .spin-mobile-switcher { display: none; }
-  .spin-workspace {
-    display: grid;
-    grid-template-columns: minmax(22rem, 27rem) minmax(0, 1fr);
-  }
   .spin-workspace[data-mobile-panel] .spin-controls,
   .spin-workspace[data-mobile-panel] .spin-preview { display: block; }
-  .spin-controls { border-inline-end: var(--rule-hair) solid var(--color-rule); }
   .spin-control-section { padding: var(--space-md); }
-  .spin-preview { padding: var(--space-md) clamp(var(--space-md), 3vw, var(--space-xl)) var(--space-xl); }
 }
 
 @media (prefers-reduced-motion: reduce) {

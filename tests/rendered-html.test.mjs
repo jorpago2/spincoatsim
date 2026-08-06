@@ -44,6 +44,10 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /aria-describedby="spin-readout"/);
   assert.match(source, /event\.key === "ArrowLeft"/);
   assert.match(styles, /macrostructure: Workbench/);
+  assert.match(styles, /tailwindcss\/utilities\.css/);
+  assert.match(styles, /@theme inline/);
+  assert.doesNotMatch(styles, /tailwindcss\/preflight|@import\s+["']tailwindcss["']/);
+  assert.match(source, /min-h-dvh/);
   assert.match(styles, /overflow-x: clip/);
   assert.doesNotMatch(styles, /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|100vw|transition:\s*all/i);
   assert.match(tokens, /--color-accent: oklch\(/);

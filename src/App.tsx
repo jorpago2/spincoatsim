@@ -327,7 +327,7 @@ export default function SpinCoatPage() {
   return (
     <main className="spin-app min-h-dvh">
       <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
-      <header className="topbar">
+      <header className="topbar flex min-h-15 items-center gap-3 border-b border-ui-border bg-ui-surface px-4 min-[40rem]:px-6 min-[60rem]:px-[clamp(1.5rem,4vw,3rem)]">
         <a className="brand" href="/spincoatsim/" aria-label="SpinCoatSim home">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           SPINCOAT<span>SIM</span>
@@ -337,7 +337,7 @@ export default function SpinCoatPage() {
         <a className="suite-link" href="https://jorpago2.github.io/" aria-label="Online Simulators & Tools">All tools</a>
       </header>
 
-      <section className="spin-tool-heading">
+      <section className="spin-tool-heading border-b border-ui-border bg-ui-canvas px-4 py-6 min-[40rem]:grid min-[40rem]:grid-cols-[minmax(0,1fr)_minmax(18rem,30rem)] min-[40rem]:items-center min-[40rem]:gap-8 min-[40rem]:px-6 min-[60rem]:px-[clamp(1.5rem,4vw,3rem)]">
         <div>
           <h1>SpinCoatSim</h1>
           <p>Configure a GDS section, material stack and calibrated coating profile.</p>
@@ -354,8 +354,8 @@ export default function SpinCoatPage() {
         <button type="button" aria-pressed={mobilePanel === "results"} onClick={() => setMobilePanel("results")}>Results</button>
       </nav>
 
-      <section className="spin-workspace" id="spin-workspace" tabIndex={-1} data-mobile-panel={mobilePanel}>
-        <aside className="spin-controls">
+      <section className="spin-workspace min-h-[calc(100dvh-12rem)] min-w-0 min-[60rem]:grid min-[60rem]:grid-cols-[minmax(22rem,27rem)_minmax(0,1fr)]" id="spin-workspace" tabIndex={-1} data-mobile-panel={mobilePanel}>
+        <aside className="spin-controls min-w-0 bg-ui-canvas-muted min-[60rem]:border-r min-[60rem]:border-ui-border">
           <section className="spin-control-section">
             <div className="step-heading"><h2>GDS section</h2></div>
             <p className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</p>
@@ -412,7 +412,7 @@ export default function SpinCoatPage() {
           </details>
         </aside>
 
-        <section className="spin-preview" aria-label="Coating results">
+        <section className="spin-preview min-h-[calc(100dvh-12rem)] min-w-0 bg-ui-canvas-muted px-4 pt-6 pb-8 min-[40rem]:px-6 min-[60rem]:px-[clamp(1.5rem,3vw,3rem)] min-[60rem]:pb-12" aria-label="Coating results">
           <div className="spin-preview-head">
             <div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>
             {section && <div className="spin-actions"><button onClick={exportPng}>Export PNG</button><button onClick={exportModel}>Export JSON</button></div>}
