@@ -1,0 +1,68 @@
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: design.md · designed-as-app */
+:root {
+  --color-paper: oklch(97.2% 0.008 155);
+  --color-paper-2: oklch(94.5% 0.012 175);
+  --color-paper-3: oklch(91.5% 0.016 175);
+  --color-surface: oklch(98.5% 0.006 155);
+  --color-surface-raised: oklch(99.2% 0.004 155);
+  --color-ink: oklch(22% 0.025 205);
+  --color-ink-2: oklch(38% 0.026 195);
+  --color-muted: oklch(44% 0.022 190);
+  --color-rule: oklch(86% 0.018 175);
+  --color-rule-2: oklch(75% 0.026 180);
+  --color-accent: oklch(46% 0.145 38);
+  --color-accent-strong: oklch(39% 0.125 38);
+  --color-accent-soft: oklch(94% 0.035 48);
+  --color-accent-ink: oklch(98.5% 0.006 155);
+  --color-focus: oklch(50% 0.16 38);
+  --color-success: oklch(43% 0.1 155);
+  --color-success-soft: oklch(94% 0.035 155);
+  --color-danger: oklch(45% 0.15 25);
+  --color-danger-soft: oklch(95% 0.035 25);
+  --color-warning: oklch(47% 0.105 70);
+  --color-warning-soft: oklch(95% 0.045 85);
+  --color-shadow: oklch(20% 0.025 205 / 0.1);
+  --color-plot-background: oklch(99% 0.005 175);
+  --color-plot-grid: oklch(90% 0.014 185);
+  --color-plot-axis: oklch(43% 0.025 195);
+  --color-plot-surface: oklch(30% 0.025 200);
+  --color-plot-film: oklch(62% 0.18 40);
+  --color-plot-cursor: oklch(46% 0.145 38);
+  --color-plot-tooltip: oklch(22% 0.025 205);
+  --color-plot-tooltip-ink: oklch(98.5% 0.006 155);
+
+  --font-display: "Space Grotesk", ui-sans-serif, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --space-3xs: 0.25rem;
+  --space-2xs: 0.5rem;
+  --space-xs: 0.75rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  --space-2xl: 4.5rem;
+  --space-3xl: 7rem;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.25rem;
+  --text-display: clamp(2rem, 3.6vw, 3.25rem);
+
+  --rule-hair: 1px;
+  --radius-input: 0.5rem;
+  --radius-card: 0.875rem;
+  --radius-pill: 999px;
+  --shadow-raised: 0 0.75rem 2rem var(--color-shadow);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 180ms;
+  --dur-long: 300ms;
+}

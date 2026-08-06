@@ -5,18 +5,24 @@ import test from "node:test";
 test("exports the SpinCoatSim application", async () => {
   const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
   const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const tokens = await readFile(new URL("../tokens.css", import.meta.url), "utf8");
   assert.match(html, /<title>SpinCoatSim/);
   assert.match(html, /favicon\.svg/);
+  assert.match(html, /viewport-fit=cover/);
+  assert.match(html, /fonts\.googleapis\.com/);
   for (const metadata of ["theme-color", "canonical", "og:site_name", "og:url", "og:image:alt", "twitter:title", "twitter:description", "twitter:image:alt"]) {
     assert.match(html, new RegExp(metadata));
   }
   assert.match(html, /Capabilities and model scope/);
+  assert.match(html, /aria-label="Workspace view"/);
+  assert.match(html, /aria-pressed="true">Configure/);
   assert.match(html, /No coating profile yet/);
   assert.match(html, /Load example/);
   assert.match(html, /href="#spin-workspace"/);
   assert.match(html, /id="spin-workspace"/);
   assert.match(html, /href="https:\/\/jorpago2\.github\.io\/"/);
-  assert.match(html, /COATING RESULT/);
+  assert.match(html, /No profile yet/);
   assert.match(html, /MICROPOSIT S1813/);
   assert.match(html, /SU-8 2002/);
   assert.match(html, /KMPR 1010/);
@@ -33,4 +39,12 @@ test("exports the SpinCoatSim application", async () => {
   assert.doesNotMatch(html, /Â|Ã|â/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview/);
   assert.match(source, /useState<GdsShape\[]>\(\[\]\)/);
+  assert.match(source, /data-mobile-panel=\{mobilePanel\}/);
+  assert.match(source, /resultHeading\.current\?\.focus\(\)/);
+  assert.match(source, /aria-describedby="spin-readout"/);
+  assert.match(source, /event\.key === "ArrowLeft"/);
+  assert.match(styles, /macrostructure: Workbench/);
+  assert.match(styles, /overflow-x: clip/);
+  assert.doesNotMatch(styles, /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|100vw|transition:\s*all/i);
+  assert.match(tokens, /--color-accent: oklch\(/);
 });

@@ -1,0 +1,9 @@
+{
+  "date": "2026-08-06",
+  "framework": "React 19 + TypeScript + Vite 8",
+  "fontStack": "Arial with monospace readouts",
+  "palette": "Warm neutral CSS properties with one orange accent",
+  "motion": "No motion dependency",
+  "spacing": "Local ad-hoc scale",
+  "designSource": "jorpago2.github.io/docs/interface-contract.md"
+}

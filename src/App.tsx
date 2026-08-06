@@ -59,6 +59,7 @@ function saveBlob(blob: Blob, name: string) {
 export default function SpinCoatPage() {
   const fileInput = useRef<HTMLInputElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const resultHeading = useRef<HTMLHeadingElement>(null);
   const [shapes, setShapes] = useState<GdsShape[]>([]);
   const [fileName, setFileName] = useState("");
   const [topCell, setTopCell] = useState("");
@@ -86,6 +87,14 @@ export default function SpinCoatPage() {
   const [cursorIndex, setCursorIndex] = useState(Math.floor(RESOLUTION / 2));
   const [canvasCssWidth, setCanvasCssWidth] = useState(1200);
   const [error, setError] = useState("");
+  const [mobilePanel, setMobilePanel] = useState<"controls" | "results">("controls");
+
+  const revealResults = () => {
+    setMobilePanel("results");
+    requestAnimationFrame(() => {
+      if (window.matchMedia("(max-width: 59.99rem)").matches) resultHeading.current?.focus();
+    });
+  };
 
   useEffect(() => {
     const element = canvas.current;
@@ -137,8 +146,10 @@ export default function SpinCoatPage() {
     element.height = Math.round(height * pixelRatio);
     const context = element.getContext("2d");
     if (!context) return;
+    const styles = getComputedStyle(document.documentElement);
+    const color = (token: string) => styles.getPropertyValue(token).trim();
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    context.fillStyle = "#07100d";
+    context.fillStyle = color("--color-plot-background");
     context.fillRect(0, 0, width, height);
 
     const compact = width < 600;
@@ -154,10 +165,10 @@ export default function SpinCoatPage() {
     const columnWidth = plotWidth / RESOLUTION;
     const verticalExaggeration = (viewWidth * 1000 / plotWidth) / (zRange / plotHeight);
 
-    context.strokeStyle = "rgba(217,255,67,.12)";
+    context.strokeStyle = color("--color-plot-grid");
     context.lineWidth = 1;
-    context.font = `${compact ? 9 : 12}px monospace`;
-    context.fillStyle = "#87928a";
+    context.font = `${compact ? 9 : 12}px ${styles.getPropertyValue("--font-mono").trim()}`;
+    context.fillStyle = color("--color-plot-axis");
     const verticalTicks = compact ? 3 : 5;
     for (let tick = 0; tick <= verticalTicks; tick += 1) {
       const y = margin.top + (tick / verticalTicks) * plotHeight;
@@ -172,7 +183,7 @@ export default function SpinCoatPage() {
         context.fillStyle = segment.color;
         context.fillRect(x, mapY(segment.top), Math.ceil(columnWidth + 0.5), Math.max(1, mapY(segment.bottom) - mapY(segment.top)));
       }
-      context.fillStyle = "rgba(255,90,31,.82)";
+      context.fillStyle = color("--color-plot-film");
       context.fillRect(x, mapY(section.film.top[index]), Math.ceil(columnWidth + 0.5), Math.max(1, mapY(section.film.surface[index]) - mapY(section.film.top[index])));
     });
 
@@ -186,31 +197,31 @@ export default function SpinCoatPage() {
       });
       context.stroke();
     };
-    strokeProfile(section.film.surface, "#dce8e2", 1);
-    strokeProfile(section.film.top, "#ffb08f", 2);
+    strokeProfile(section.film.surface, color("--color-plot-surface"), 1);
+    strokeProfile(section.film.top, color("--color-plot-film"), 2);
 
     const cursorCanvasX = margin.left + (cursorIndex + 0.5) * columnWidth;
     const cursorSurfaceY = mapY(section.film.surface[cursorIndex]);
     const cursorTopY = mapY(section.film.top[cursorIndex]);
-    context.strokeStyle = "#d9ff43";
+    context.strokeStyle = color("--color-plot-cursor");
     context.setLineDash([6, 5]);
     context.beginPath(); context.moveTo(cursorCanvasX, margin.top); context.lineTo(cursorCanvasX, height - margin.bottom); context.stroke();
     context.setLineDash([]);
     context.lineWidth = 2;
     context.beginPath(); context.moveTo(cursorCanvasX, cursorTopY); context.lineTo(cursorCanvasX, cursorSurfaceY); context.stroke();
-    context.fillStyle = "#d9ff43";
+    context.fillStyle = color("--color-plot-cursor");
     for (const y of [cursorTopY, cursorSurfaceY]) {
       context.beginPath(); context.arc(cursorCanvasX, y, compact ? 2 : 3, 0, 2 * Math.PI); context.fill();
     }
     const labelWidth = compact ? 70 : 88;
     const labelX = cursorCanvasX + labelWidth + 10 > width - margin.right ? cursorCanvasX - labelWidth - 8 : cursorCanvasX + 8;
     const labelY = Math.max(margin.top + 5, cursorTopY - 23);
-    context.fillStyle = "rgba(7,16,13,.9)";
+    context.fillStyle = color("--color-plot-tooltip");
     context.fillRect(labelX, labelY, labelWidth, compact ? 16 : 20);
-    context.fillStyle = "#d9ff43";
+    context.fillStyle = color("--color-plot-tooltip-ink");
     context.fillText(`${section.film.localThickness[cursorIndex].toFixed(1)} nm`, labelX + 5, labelY + (compact ? 11 : 14));
 
-    context.fillStyle = "#87928a";
+    context.fillStyle = color("--color-plot-axis");
     context.textAlign = "center";
     const horizontalTicks = compact ? 2 : 4;
     for (let tick = 0; tick <= horizontalTicks; tick += 1) {
@@ -218,12 +229,12 @@ export default function SpinCoatPage() {
       context.fillText(`${(xMin + (tick / horizontalTicks) * viewWidth).toFixed(1)}`, x, height - (compact ? 15 : 23));
     }
     context.textAlign = "left";
-    context.fillStyle = "#87928a";
+    context.fillStyle = color("--color-plot-axis");
     context.fillText("z (nm)", 8, margin.top - 10);
     context.textAlign = "right";
     context.fillText("x (µm)", width - margin.right, height - 4);
     context.textAlign = "left";
-    context.fillStyle = "#d9ff43";
+    context.fillStyle = color("--color-plot-cursor");
     context.fillText(compact
       ? `y = ${sliceY.toFixed(2)} µm · z ×${verticalExaggeration.toFixed(0)}`
       : `Section y = ${sliceY.toFixed(2)} µm · vertical exaggeration ×${verticalExaggeration.toFixed(0)}`,
@@ -247,6 +258,7 @@ export default function SpinCoatPage() {
       const firstLayer = flattened[0].layer;
       setLayers((current) => current.map((layer) => ({ ...layer, gdsLayer: firstLayer })));
       setError("");
+      revealResults();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
     } finally {
@@ -262,6 +274,7 @@ export default function SpinCoatPage() {
     setCentreX(0);
     setViewWidth(100);
     setError("");
+    revealResults();
   }
 
   function changeLayer(id: number, patch: Partial<StackLayer>) {
@@ -319,16 +332,15 @@ export default function SpinCoatPage() {
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           SPINCOAT<span>SIM</span>
         </a>
-        <p>GDS cross-section · calibrated geometric model</p>
+        <p>Spin-coating cross-sections</p>
         <span className="device-pill"><span />Local processing</span>
         <a className="suite-link" href="https://jorpago2.github.io/" aria-label="Online Simulators & Tools">All tools</a>
       </header>
 
       <section className="spin-tool-heading">
         <div>
-          <p className="eyebrow">PROCESS EMULATION / SOL–GEL</p>
           <h1>SpinCoatSim</h1>
-          <p>Load a GDS cross-section and inspect the coating profile when needed.</p>
+          <p>Configure a GDS section, material stack and calibrated coating profile.</p>
         </div>
         <details className="spin-tool-about">
           <summary>Capabilities and model scope</summary>
@@ -337,13 +349,17 @@ export default function SpinCoatPage() {
         </details>
       </section>
 
-      <section className="spin-workspace" id="spin-workspace" tabIndex={-1}>
+      <nav className="spin-mobile-switcher" aria-label="Workspace view">
+        <button type="button" aria-pressed={mobilePanel === "controls"} onClick={() => setMobilePanel("controls")}>Configure</button>
+        <button type="button" aria-pressed={mobilePanel === "results"} onClick={() => setMobilePanel("results")}>Results</button>
+      </nav>
+
+      <section className="spin-workspace" id="spin-workspace" tabIndex={-1} data-mobile-panel={mobilePanel}>
         <aside className="spin-controls">
           <section className="spin-control-section">
-            <div className="step-heading"><span>01</span><div><p>GEOMETRY</p><h2>GDS section</h2></div></div>
-            <button className="spin-upload" onClick={() => fileInput.current?.click()}>
-              <b>{fileName || "No GDS loaded"}</b><span>Choose a local .gds file</span>
-            </button>
+            <div className="step-heading"><h2>GDS section</h2></div>
+            <p className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</p>
+            <button className="spin-upload" onClick={() => fileInput.current?.click()}>Choose a local .gds file</button>
             <button className="spin-example" type="button" onClick={loadDemo}>Load example</button>
             <input ref={fileInput} type="file" accept=".gds,.gdsii" hidden onChange={loadGds} />
             {error && <p className="spin-error" role="alert">{error}</p>}
@@ -356,7 +372,7 @@ export default function SpinCoatPage() {
           </section>
 
           <details className="spin-control-section spin-disclosure">
-            <summary><span>02</span><div><p>STACK</p><h2>Existing materials</h2></div></summary>
+            <summary><h2>Existing materials</h2></summary>
             <label className="spin-single-field">Displayed substrate depth <span>nm</span><input type="number" min="10" value={substrateThickness} onChange={(event) => setSubstrateThickness(bounded(Number(event.target.value), substrateThickness, 10, 1e6))} /></label>
             <div className="spin-layer-list">
               {layers.map((layer, index) => <article className="spin-layer" key={layer.id}>
@@ -372,7 +388,7 @@ export default function SpinCoatPage() {
           </details>
 
           <details className="spin-control-section spin-disclosure">
-            <summary><span>03</span><div><p>SPIN COATING</p><h2>Calibrated film</h2></div></summary>
+            <summary><h2>Calibrated film</h2></summary>
             <div className="settings-grid spin-fields">
               <label className="full-width">Coating library<select value={coatingLibrary} onChange={(event) => { setCoatingLibrary(event.target.value as "photoresist" | "oxide"); setCoatingPresetId(""); }}><option value="photoresist">Photoresists</option><option value="oxide">Metal oxides</option></select></label>
               {coatingLibrary === "photoresist" ? <>
@@ -396,9 +412,9 @@ export default function SpinCoatPage() {
           </details>
         </aside>
 
-        <section className="spin-preview">
+        <section className="spin-preview" aria-label="Coating results">
           <div className="spin-preview-head">
-            <div><p>COATING RESULT</p><h2>{fileName || "No profile yet"}</h2></div>
+            <div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>
             {section && <div className="spin-actions"><button onClick={exportPng}>Export PNG</button><button onClick={exportModel}>Export JSON</button></div>}
           </div>
           {section ? <>
@@ -408,12 +424,20 @@ export default function SpinCoatPage() {
             height={650}
             className="spin-canvas"
             aria-label="Simulated material stack cross-section and spin-coated film"
-            onMouseMove={(event) => {
+            aria-describedby="spin-readout"
+            tabIndex={0}
+            onPointerMove={(event) => {
               const rectangle = event.currentTarget.getBoundingClientRect();
               setCursorIndex(Math.max(0, Math.min(RESOLUTION - 1, Math.floor(((event.clientX - rectangle.left) / rectangle.width) * RESOLUTION))));
             }}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              const step = event.shiftKey ? 10 : 1;
+              setCursorIndex((index) => Math.max(0, Math.min(RESOLUTION - 1, index + (event.key === "ArrowLeft" ? -step : step))));
+            }}
           />
-          <div className="spin-readout"><span>x = {cursorX.toFixed(2)} µm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
+          <div className="spin-readout" id="spin-readout"><span>x = {cursorX.toFixed(2)} µm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
 
           <div className="spin-metrics">
             <article><p>CALIBRATED DRY FILM</p><strong>{dryThickness.toFixed(1)} nm</strong></article>
@@ -430,12 +454,12 @@ export default function SpinCoatPage() {
             <span><i style={{ background: "#ff5a1f" }} />Spin-coated {metalOxidePreset?.family ?? "film"}</span>
           </div>
 
-          <aside className="spin-validity">
-            <b>Model boundary</b>
+          <details className="spin-validity">
+            <summary>Model boundary</summary>
             <p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>
             {section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}
-          </aside>
-          </> : <div className="spin-empty-state"><strong>No coating profile yet</strong><p>Load a GDS file or the example to calculate and display the cross-section.</p></div>}
+          </details>
+          </> : <div className="spin-empty-state"><strong>No coating profile yet</strong><p>Load a GDS file or use the example to calculate and display the cross-section.</p><button type="button" onClick={loadDemo}>Load example</button></div>}
         </section>
       </section>
     </main>
