@@ -3,32 +3,16 @@
  * nav: N9 · footer: none (app) · contrast: pass (40–41) · slop: pass (42–45)
  * honest: pass (46) · chrome: pass (47) · tokens: pass (48) · mobile: pass (34, 49–57)
  */
-@layer theme, base, components, utilities;
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
 @import "../tokens.css";
 
-@theme inline {
-  --color-ui-canvas: var(--color-paper);
-  --color-ui-canvas-muted: var(--color-paper-2);
-  --color-ui-surface: var(--color-surface);
-  --color-ui-surface-raised: var(--color-surface-raised);
-  --color-ui-ink: var(--color-ink);
-  --color-ui-muted: var(--color-muted);
-  --color-ui-border: var(--color-rule);
-  --color-ui-border-strong: var(--color-rule-2);
-  --color-ui-accent: var(--color-accent);
-  --color-ui-focus: var(--color-focus);
-  --color-ui-danger: var(--color-danger);
-  --color-ui-success: var(--color-success);
-  --font-ui-body: var(--font-body);
-  --font-ui-display: var(--font-display);
-  --radius-ui-control: var(--radius-input);
-  --radius-ui-panel: var(--radius-card);
-  --shadow-ui-raised: var(--shadow-raised);
-}
-
 * { box-sizing: border-box; }
+.spin-app.cds--grid { min-height: 100dvh; max-width: none; padding: 0; }
+.spin-app-column { min-width: 0; max-width: none; padding: 0; }
+.topbar { min-height: 3.75rem; display: flex; align-items: center; gap: .75rem; padding: 0 1rem; border-bottom: 1px solid var(--color-rule); background: var(--color-surface); }
+.spin-tool-heading { padding: 1.5rem 1rem; border-bottom: 1px solid var(--color-rule); background: var(--color-paper); }
+.spin-workspace { min-width: 0; min-height: calc(100dvh - 12rem); }
+.spin-controls { min-width: 0; background: var(--color-paper-2); }
+.spin-preview { min-width: 0; min-height: calc(100dvh - 12rem); padding: 1.5rem 1rem 2rem; background: var(--color-paper-2); }
 html, body { overflow-x: clip; }
 html { scroll-behavior: smooth; }
 body {
@@ -553,6 +537,9 @@ input[data-state="success"] { border-color: var(--color-success); background: va
 }
 
 @media (min-width: 40rem) {
+  .topbar { padding-inline: 1.5rem; }
+  .spin-tool-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 30rem); align-items: center; gap: 2rem; padding-inline: 1.5rem; }
+  .spin-preview { padding-inline: 1.5rem; }
   .topbar > p { display: block; }
   .device-pill {
     width: auto;
@@ -580,6 +567,10 @@ input[data-state="success"] { border-color: var(--color-success); background: va
 }
 
 @media (min-width: 60rem) {
+  .topbar, .spin-tool-heading { padding-inline: clamp(1.5rem, 4vw, 3rem); }
+  .spin-workspace { display: grid; grid-template-columns: minmax(22rem, 27rem) minmax(0, 1fr); }
+  .spin-controls { border-right: 1px solid var(--color-rule); }
+  .spin-preview { padding-inline: clamp(1.5rem, 3vw, 3rem); padding-bottom: 3rem; }
   .spin-mobile-switcher { display: none; }
   .spin-workspace[data-mobile-panel] .spin-controls,
   .spin-workspace[data-mobile-panel] .spin-preview { display: block; }
