@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-08-07",
+    "scope": "app",
+    "macrostructure": "Workbench",
+    "theme": "Carbon scientific shell",
+    "enrichment": "none",
+    "nav": "workflow rail / bottom bar",
+    "footer": "status strip",
+    "brief": "Scientific workbench architecture for SpinCoatSim"
+  },
+  {
     "date": "2026-08-06",
     "scope": "app",
     "macrostructure": "Workbench",

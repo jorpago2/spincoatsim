@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Column, Grid } from "@carbon/react";
+import { Chemistry, Close, Document, Layers } from "@carbon/react/icons";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -17,6 +17,7 @@ type GdsShape = ReturnType<typeof flattenGds>[number];
 type LayerMode = "uniform" | "patterned" | "etch";
 type StackLayer = { id: number; name: string; mode: LayerMode; thicknessNm: number; gdsLayer: number; color: string };
 type MaterialSegment = { name: string; color: string; bottom: number; top: number };
+type ToolPanel = "input" | "stack" | "coating";
 type SectionResult = {
   columns: MaterialSegment[][];
   film: {
@@ -87,14 +88,34 @@ export default function SpinCoatPage() {
   const [cursorIndex, setCursorIndex] = useState(Math.floor(RESOLUTION / 2));
   const [canvasCssWidth, setCanvasCssWidth] = useState(1200);
   const [error, setError] = useState("");
-  const [mobilePanel, setMobilePanel] = useState<"controls" | "results">("controls");
+  const [activePanel, setActivePanel] = useState<ToolPanel | null>(null);
 
   const revealResults = () => {
-    setMobilePanel("results");
+    setActivePanel(null);
     requestAnimationFrame(() => {
-      if (window.matchMedia("(max-width: 59.99rem)").matches) resultHeading.current?.focus();
+      resultHeading.current?.focus();
     });
   };
+
+  const closePanel = () => {
+    const panel = activePanel;
+    setActivePanel(null);
+    requestAnimationFrame(() => document.getElementById(`spin-nav-${panel}`)?.focus());
+  };
+
+  const togglePanel = (panel: ToolPanel) => setActivePanel((current) => current === panel ? null : panel);
+
+  useEffect(() => {
+    if (!activePanel) return;
+    const panel = activePanel;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setActivePanel(null);
+      requestAnimationFrame(() => document.getElementById(`spin-nav-${panel}`)?.focus());
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [activePanel]);
 
   useEffect(() => {
     const element = canvas.current;
@@ -325,40 +346,39 @@ export default function SpinCoatPage() {
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
 
   return (
-    <Grid as="main" fullWidth condensed className="spin-app">
-      <Column sm={4} md={8} lg={16} className="spin-app-column">
+    <main className="spin-app">
+      <div className="spin-app-column">
       <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
       <header className="topbar">
         <a className="brand" href="/spincoatsim/" aria-label="SpinCoatSim home">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           SPINCOAT<span>SIM</span>
         </a>
-        <p>Spin-coating cross-sections</p>
-        <span className="device-pill"><span />Local processing</span>
-        <a className="suite-link" href="https://jorpago2.github.io/" aria-label="Online Simulators & Tools">All tools</a>
-      </header>
-
-      <section className="spin-tool-heading">
-        <div>
-          <h1>SpinCoatSim</h1>
-          <p>Configure a GDS section, material stack and calibrated coating profile.</p>
+        <div className="spin-header-context" aria-label="Current model">
+          <p>{fileName || "No GDS loaded"}</p>
+          <span className={`spin-state ${section ? "spin-state--ready" : "spin-state--idle"}`} role="status" aria-live="polite">{section ? "Profile ready" : "Needs input"}</span>
         </div>
-        <details className="spin-tool-about">
-          <summary>Capabilities and model scope</summary>
-          <p className="spin-hero-flow">GDS <span>→</span> STACK <span>→</span> FILM PROFILE</p>
-          <p>Import a GDS, define the existing stack and inspect a section after spin coating. Thickness follows your measured RPM calibration; topography redistribution uses an area-conserving geometric model.</p>
-        </details>
-      </section>
+        <div className="spin-header-actions">
+          <span className="device-pill"><span />Local processing</span>
+          <a className="suite-link" href="https://jorpago2.github.io/" aria-label="Online Simulators & Tools">All tools</a>
+        </div>
+      </header>
+      <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
 
-      <nav className="spin-mobile-switcher" aria-label="Workspace view">
-        <button type="button" aria-pressed={mobilePanel === "controls"} onClick={() => setMobilePanel("controls")}>Configure</button>
-        <button type="button" aria-pressed={mobilePanel === "results"} onClick={() => setMobilePanel("results")}>Results</button>
+      <nav className="spin-navigation" aria-label="Configuration tools">
+        <button id="spin-nav-input" type="button" aria-controls="spin-tool-panel" aria-expanded={activePanel === "input"} className={activePanel === "input" ? "active" : ""} onClick={() => togglePanel("input")}><Document size={20} /><span>Input</span></button>
+        <button id="spin-nav-stack" type="button" aria-controls="spin-tool-panel" aria-expanded={activePanel === "stack"} className={activePanel === "stack" ? "active" : ""} onClick={() => togglePanel("stack")}><Layers size={20} /><span>Stack</span></button>
+        <button id="spin-nav-coating" type="button" aria-controls="spin-tool-panel" aria-expanded={activePanel === "coating"} className={activePanel === "coating" ? "active" : ""} onClick={() => togglePanel("coating")}><Chemistry size={20} /><span>Coating</span></button>
       </nav>
 
-      <section className="spin-workspace" id="spin-workspace" tabIndex={-1} data-mobile-panel={mobilePanel}>
-        <aside className="spin-controls">
-          <section className="spin-control-section">
-            <div className="step-heading"><h2>GDS section</h2></div>
+      <section className="spin-workspace" id="spin-workspace" tabIndex={-1} data-panel-open={Boolean(activePanel)}>
+        {activePanel && <aside className="spin-controls" id="spin-tool-panel" aria-labelledby="spin-panel-title">
+          <div className="spin-panel-head">
+            <div><p>Configuration</p><h2 id="spin-panel-title">{activePanel === "input" ? "GDS section" : activePanel === "stack" ? "Existing materials" : "Calibrated film"}</h2></div>
+            <button type="button" className="spin-panel-close" aria-label="Close configuration panel" onClick={closePanel}><Close size={20} /></button>
+          </div>
+          <div className="spin-panel-body">
+          {activePanel === "input" && <section className="spin-control-section">
             <p className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</p>
             <button className="spin-upload" onClick={() => fileInput.current?.click()}>Choose a local .gds file</button>
             <button className="spin-example" type="button" onClick={loadDemo}>Load example</button>
@@ -370,10 +390,14 @@ export default function SpinCoatPage() {
               <label className="full-width">Displayed width <span>µm</span><input type="number" value={viewWidth} min="0.1" onChange={(event) => setViewWidth(bounded(Number(event.target.value), viewWidth, 0.1, 1e6))} /></label>
             </div>
             <p className="spin-note">{shapes.length ? `Cell ${topCell} · layers ${availableLayers.join(", ")}. The section currently intersects polygon geometry.` : "Load a GDS or the example to reveal the stack and coating result."}</p>
-          </section>
+            <details className="spin-tool-about">
+              <summary>Capabilities and model scope</summary>
+              <p className="spin-hero-flow">GDS <span>→</span> STACK <span>→</span> FILM PROFILE</p>
+              <p>Import a GDS, define the existing stack and inspect a section after spin coating. Thickness follows your measured RPM calibration; topography redistribution uses an area-conserving geometric model.</p>
+            </details>
+          </section>}
 
-          <details className="spin-control-section spin-disclosure">
-            <summary><h2>Existing materials</h2></summary>
+          {activePanel === "stack" && <section className="spin-control-section">
             <label className="spin-single-field">Displayed substrate depth <span>nm</span><input type="number" min="10" value={substrateThickness} onChange={(event) => setSubstrateThickness(bounded(Number(event.target.value), substrateThickness, 10, 1e6))} /></label>
             <div className="spin-layer-list">
               {layers.map((layer, index) => <article className="spin-layer" key={layer.id}>
@@ -386,10 +410,9 @@ export default function SpinCoatPage() {
               </article>)}
             </div>
             <button className="spin-add" onClick={addLayer}>+ Add process layer</button>
-          </details>
+          </section>}
 
-          <details className="spin-control-section spin-disclosure">
-            <summary><h2>Calibrated film</h2></summary>
+          {activePanel === "coating" && <section className="spin-control-section">
             <div className="settings-grid spin-fields">
               <label className="full-width">Coating library<select value={coatingLibrary} onChange={(event) => { setCoatingLibrary(event.target.value as "photoresist" | "oxide"); setCoatingPresetId(""); }}><option value="photoresist">Photoresists</option><option value="oxide">Metal oxides</option></select></label>
               {coatingLibrary === "photoresist" ? <>
@@ -410,8 +433,9 @@ export default function SpinCoatPage() {
             {metalOxidePreset && <aside className="spin-reference" aria-live="polite"><b>{metalOxidePreset.family} · {metalOxidePreset.name}</b><span>{metalOxidePreset.precursor} on {metalOxidePreset.substrate}. {metalOxidePreset.cycles} coat(s), {metalOxidePreset.spinSeconds} s; {metalOxidePreset.thermalTreatment}. {metalOxidePreset.phase}.</span><span>{metalOxidePreset.evidence}. The loaded value is the published final dry thickness; n = 0.5 remains a generic extrapolation.</span><a href={metalOxidePreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</a></aside>}
             <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
-          </details>
-        </aside>
+          </section>}
+          </div>
+        </aside>}
 
         <section className="spin-preview" aria-label="Coating results">
           <div className="spin-preview-head">
@@ -463,7 +487,15 @@ export default function SpinCoatPage() {
           </> : <div className="spin-empty-state"><strong>No coating profile yet</strong><p>Load a GDS file or use the example to calculate and display the cross-section.</p><button type="button" onClick={loadDemo}>Load example</button></div>}
         </section>
       </section>
-      </Column>
-    </Grid>
+      <footer className="spin-status" data-ready={Boolean(section)} aria-label="Simulation status">
+        <p><span aria-hidden="true" />{section ? "Coating profile ready" : "Load a GDS file or the example to begin"}</p>
+        <dl>
+          <div><dt>Layers</dt><dd>{layers.length}</dd></div>
+          <div><dt>Film</dt><dd>{section ? `${finalThickness.toFixed(1)} nm` : "—"}</dd></div>
+          <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
+        </dl>
+      </footer>
+      </div>
+    </main>
   );
 }
