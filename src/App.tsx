@@ -1,7 +1,26 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Chemistry, Close, Document, Layers } from "@carbon/react/icons";
+import {
+  Accordion,
+  AccordionItem,
+  Button,
+  Column,
+  FileUploaderButton,
+  Grid,
+  Header,
+  HeaderName,
+  IconButton,
+  Layer,
+  Link,
+  NumberInput,
+  Select,
+  SelectItem,
+  Slider,
+  TextInput,
+  Tile,
+} from "@carbon/react";
+import { Add, Chemistry, Close, Document, Layers, TrashCan } from "@carbon/react/icons";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -48,6 +67,31 @@ function bounded(value: number, fallback: number, minimum: number, maximum: numb
   return Number.isFinite(value) ? Math.max(minimum, Math.min(maximum, value)) : fallback;
 }
 
+type NumberFieldProps = {
+  id: string;
+  label: string;
+  unit?: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onValue: (value: number) => void;
+};
+
+function NumberField({ id, label, unit, value, min, max, step, onValue }: NumberFieldProps) {
+  return <NumberInput
+    id={id}
+    label={`${label}${unit ? ` (${unit})` : ""}`}
+    value={value}
+    min={min}
+    max={max}
+    step={step}
+    size="md"
+    disableWheel
+    onChange={(_, state) => onValue(Number(state.value))}
+  />;
+}
+
 function saveBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -58,7 +102,6 @@ function saveBlob(blob: Blob, name: string) {
 }
 
 export default function SpinCoatPage() {
-  const fileInput = useRef<HTMLInputElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const resultHeading = useRef<HTMLHeadingElement>(null);
   const [shapes, setShapes] = useState<GdsShape[]>([]);
@@ -346,101 +389,95 @@ export default function SpinCoatPage() {
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
 
   return (
-    <main className="spin-app">
-      <div className="spin-app-column">
+    <Grid as="main" fullWidth condensed className="spin-app">
+      <Column sm={4} md={8} lg={16} className="spin-app-column">
       <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
-      <header className="topbar">
-        <a className="brand" href="/spincoatsim/" aria-label="SpinCoatSim home">
+      <Header className="topbar" aria-label="SpinCoatSim">
+        <HeaderName className="brand" prefix="" href="/spincoatsim/">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           SPINCOAT<span>SIM</span>
-        </a>
-        <div className="spin-header-context" aria-label="Current model">
-          <p>{fileName || "No GDS loaded"}</p>
-          <span className={`spin-state ${section ? "spin-state--ready" : "spin-state--idle"}`} role="status" aria-live="polite">{section ? "Profile ready" : "Needs input"}</span>
-        </div>
-        <div className="spin-header-actions">
-          <span className="device-pill"><span />Local processing</span>
-          <a className="suite-link" href="https://jorpago2.github.io/" aria-label="Online Simulators & Tools">All tools</a>
-        </div>
-      </header>
+        </HeaderName>
+        <div className="spin-header-context" aria-label="Current model"><p>{fileName || "No GDS loaded"}</p></div>
+        <div className="spin-header-actions"><Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link></div>
+      </Header>
       <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
 
       <nav className="spin-navigation" aria-label="Configuration tools">
-        <button id="spin-nav-input" type="button" aria-controls="spin-tool-panel" aria-expanded={activePanel === "input"} className={activePanel === "input" ? "active" : ""} onClick={() => togglePanel("input")}><Document size={20} /><span>Input</span></button>
-        <button id="spin-nav-stack" type="button" aria-controls="spin-tool-panel" aria-expanded={activePanel === "stack"} className={activePanel === "stack" ? "active" : ""} onClick={() => togglePanel("stack")}><Layers size={20} /><span>Stack</span></button>
-        <button id="spin-nav-coating" type="button" aria-controls="spin-tool-panel" aria-expanded={activePanel === "coating"} className={activePanel === "coating" ? "active" : ""} onClick={() => togglePanel("coating")}><Chemistry size={20} /><span>Coating</span></button>
+        <Button id="spin-nav-input" kind="ghost" size="lg" renderIcon={Document} aria-controls="spin-tool-panel" aria-expanded={activePanel === "input"} className={activePanel === "input" ? "active" : ""} onClick={() => togglePanel("input")}>Input</Button>
+        <Button id="spin-nav-stack" kind="ghost" size="lg" renderIcon={Layers} aria-controls="spin-tool-panel" aria-expanded={activePanel === "stack"} className={activePanel === "stack" ? "active" : ""} onClick={() => togglePanel("stack")}>Stack</Button>
+        <Button id="spin-nav-coating" kind="ghost" size="lg" renderIcon={Chemistry} aria-controls="spin-tool-panel" aria-expanded={activePanel === "coating"} className={activePanel === "coating" ? "active" : ""} onClick={() => togglePanel("coating")}>Coating</Button>
       </nav>
 
       <section className="spin-workspace" id="spin-workspace" tabIndex={-1} data-panel-open={Boolean(activePanel)}>
-        {activePanel && <aside className="spin-controls" id="spin-tool-panel" aria-labelledby="spin-panel-title">
+        {activePanel && <><div className="spin-panel-scrim" aria-hidden="true" /><Layer as="aside" withBackground className="spin-controls" id="spin-tool-panel" aria-labelledby="spin-panel-title">
           <div className="spin-panel-head">
             <div><p>Configuration</p><h2 id="spin-panel-title">{activePanel === "input" ? "GDS section" : activePanel === "stack" ? "Existing materials" : "Calibrated film"}</h2></div>
-            <button type="button" className="spin-panel-close" aria-label="Close configuration panel" onClick={closePanel}><Close size={20} /></button>
+            <IconButton className="spin-panel-close" kind="ghost" size="lg" label="Close configuration panel" onClick={closePanel}><Close size={20} /></IconButton>
           </div>
-          <div className="spin-panel-body">
+          <div className={`spin-panel-body${activePanel === "stack" ? " spin-panel-body--stack" : ""}`} key={activePanel}>
           {activePanel === "input" && <section className="spin-control-section">
-            <p className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</p>
-            <button className="spin-upload" onClick={() => fileInput.current?.click()}>Choose a local .gds file</button>
-            <button className="spin-example" type="button" onClick={loadDemo}>Load example</button>
-            <input ref={fileInput} type="file" accept=".gds,.gdsii" hidden onChange={loadGds} />
+            <Tile className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</Tile>
+            <FileUploaderButton id="spin-gds-upload" className="spin-upload" accept={[".gds", ".gdsii"]} buttonKind="tertiary" size="md" labelText="Choose a local .gds file" onChange={loadGds} />
+            <Button className="spin-example" kind="secondary" size="md" onClick={loadDemo}>Load example</Button>
             {error && <p className="spin-error" role="alert">{error}</p>}
-            <div className="settings-grid spin-fields">
-              <label>Section Y <span>µm</span><input type="number" value={sliceY} step="0.1" onChange={(event) => setSliceY(Number(event.target.value))} /></label>
-              <label>Centre X <span>µm</span><input type="number" value={centreX} step="0.1" onChange={(event) => setCentreX(Number(event.target.value))} /></label>
-              <label className="full-width">Displayed width <span>µm</span><input type="number" value={viewWidth} min="0.1" onChange={(event) => setViewWidth(bounded(Number(event.target.value), viewWidth, 0.1, 1e6))} /></label>
-            </div>
+            <Grid condensed className="spin-fields">
+              <Column sm={4} md={4} lg={8}><NumberField id="section-y" label="Section Y" unit="µm" value={sliceY} min={-1e6} max={1e6} step={0.1} onValue={setSliceY} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="centre-x" label="Centre X" unit="µm" value={centreX} min={-1e6} max={1e6} step={0.1} onValue={setCentreX} /></Column>
+              <Column sm={4} md={8} lg={16}><NumberField id="displayed-width" label="Displayed width" unit="µm" value={viewWidth} min={0.1} max={1e6} step={0.1} onValue={(value) => setViewWidth(bounded(value, viewWidth, 0.1, 1e6))} /></Column>
+            </Grid>
             <p className="spin-note">{shapes.length ? `Cell ${topCell} · layers ${availableLayers.join(", ")}. The section currently intersects polygon geometry.` : "Load a GDS or the example to reveal the stack and coating result."}</p>
-            <details className="spin-tool-about">
-              <summary>Capabilities and model scope</summary>
-              <p className="spin-hero-flow">GDS <span>→</span> STACK <span>→</span> FILM PROFILE</p>
-              <p>Import a GDS, define the existing stack and inspect a section after spin coating. Thickness follows your measured RPM calibration; topography redistribution uses an area-conserving geometric model.</p>
-            </details>
+            <Accordion align="start" size="sm" className="spin-tool-about">
+              <AccordionItem title="Capabilities and model scope">
+                <p className="spin-hero-flow">GDS <span>→</span> STACK <span>→</span> FILM PROFILE</p>
+                <p>Import a GDS, define the existing stack and inspect a section after spin coating. Thickness follows your measured RPM calibration; topography redistribution uses an area-conserving geometric model.</p>
+              </AccordionItem>
+            </Accordion>
           </section>}
 
           {activePanel === "stack" && <section className="spin-control-section">
-            <label className="spin-single-field">Displayed substrate depth <span>nm</span><input type="number" min="10" value={substrateThickness} onChange={(event) => setSubstrateThickness(bounded(Number(event.target.value), substrateThickness, 10, 1e6))} /></label>
+            <NumberField id="substrate-depth" label="Displayed substrate depth" unit="nm" value={substrateThickness} min={10} max={1e6} onValue={(value) => setSubstrateThickness(bounded(value, substrateThickness, 10, 1e6))} />
             <div className="spin-layer-list">
-              {layers.map((layer, index) => <article className="spin-layer" key={layer.id}>
-                <div className="spin-layer-head"><i style={{ background: layer.color }} /><b>{index + 1}</b><input aria-label={`Layer ${index + 1} name`} value={layer.name} onChange={(event) => changeLayer(layer.id, { name: event.target.value })} /><button aria-label={`Remove ${layer.name}`} onClick={() => setLayers((current) => current.filter((item) => item.id !== layer.id))}>×</button></div>
-                <div className="spin-layer-fields">
-                  <label>Operation<select value={layer.mode} onChange={(event) => changeLayer(layer.id, { mode: event.target.value as LayerMode })}><option value="uniform">Uniform deposit</option><option value="patterned">Patterned deposit</option><option value="etch">Etch into stack</option></select></label>
-                  <label>{layer.mode === "etch" ? "Depth" : "Thickness"}<input type="number" min="1" value={layer.thicknessNm} onChange={(event) => changeLayer(layer.id, { thicknessNm: bounded(Number(event.target.value), layer.thicknessNm, 1, 1e6) })} /></label>
-                  {layer.mode !== "uniform" && <label>GDS layer<select value={layer.gdsLayer} onChange={(event) => changeLayer(layer.id, { gdsLayer: Number(event.target.value) })}>{availableLayers.map((number) => <option key={number} value={number}>{number}</option>)}</select></label>}
-                </div>
-              </article>)}
+              {layers.map((layer, index) => <Tile className="spin-layer" key={layer.id}>
+                <div className="spin-layer-head"><i style={{ background: layer.color }} /><b>{index + 1}</b><TextInput id={`layer-${layer.id}-name`} labelText={`Layer ${index + 1} name`} hideLabel size="sm" value={layer.name} onChange={(event) => changeLayer(layer.id, { name: event.target.value })} /><IconButton kind="ghost" size="sm" label={`Remove ${layer.name}`} onClick={() => setLayers((current) => current.filter((item) => item.id !== layer.id))}><TrashCan size={16} /></IconButton></div>
+                <Grid condensed className="spin-layer-fields">
+                  <Column sm={4} md={8} lg={16}><Select id={`layer-${layer.id}-operation`} labelText="Operation" size="md" value={layer.mode} onChange={(event) => changeLayer(layer.id, { mode: event.target.value as LayerMode })}><SelectItem value="uniform" text="Uniform deposit" /><SelectItem value="patterned" text="Patterned deposit" /><SelectItem value="etch" text="Etch into stack" /></Select></Column>
+                  <Column sm={4} md={4} lg={8}><NumberField id={`layer-${layer.id}-thickness`} label={layer.mode === "etch" ? "Depth" : "Thickness"} unit="nm" value={layer.thicknessNm} min={1} max={1e6} onValue={(value) => changeLayer(layer.id, { thicknessNm: bounded(value, layer.thicknessNm, 1, 1e6) })} /></Column>
+                  {layer.mode !== "uniform" && <Column sm={4} md={4} lg={8}><Select id={`layer-${layer.id}-gds`} labelText="GDS layer" size="md" value={layer.gdsLayer} onChange={(event) => changeLayer(layer.id, { gdsLayer: Number(event.target.value) })}>{availableLayers.map((number) => <SelectItem key={number} value={number} text={String(number)} />)}</Select></Column>}
+                </Grid>
+              </Tile>)}
             </div>
-            <button className="spin-add" onClick={addLayer}>+ Add process layer</button>
+            <Button className="spin-add" kind="tertiary" size="md" renderIcon={Add} onClick={addLayer}>Add process layer</Button>
           </section>}
 
           {activePanel === "coating" && <section className="spin-control-section">
-            <div className="settings-grid spin-fields">
-              <label className="full-width">Coating library<select value={coatingLibrary} onChange={(event) => { setCoatingLibrary(event.target.value as "photoresist" | "oxide"); setCoatingPresetId(""); }}><option value="photoresist">Photoresists</option><option value="oxide">Metal oxides</option></select></label>
+            <Grid condensed className="spin-fields">
+              <Column sm={4} md={8} lg={16}><Select id="coating-library" labelText="Coating library" size="md" value={coatingLibrary} onChange={(event) => { setCoatingLibrary(event.target.value as "photoresist" | "oxide"); setCoatingPresetId(""); }}><SelectItem value="photoresist" text="Photoresists" /><SelectItem value="oxide" text="Metal oxides" /></Select></Column>
               {coatingLibrary === "photoresist" ? <>
-                <label>Polarity<select value={photoresistPolarity} onChange={(event) => { setPhotoresistPolarity(event.target.value); setCoatingPresetId(""); }}><option value="">All polarities</option>{PHOTORESIST_POLARITIES.map((polarity) => <option key={polarity} value={polarity}>{polarity}</option>)}</select></label>
-                <label>Brand<select value={photoresistManufacturer} onChange={(event) => { setPhotoresistManufacturer(event.target.value); setCoatingPresetId(""); }}><option value="">All brands</option>{PHOTORESIST_MANUFACTURERS.map((manufacturer) => <option key={manufacturer} value={manufacturer}>{manufacturer}</option>)}</select></label>
-                <label className="full-width">Exposure<select value={photoresistExposureNm} onChange={(event) => { setPhotoresistExposureNm(event.target.value); setCoatingPresetId(""); }}><option value="">All wavelengths</option>{PHOTORESIST_EXPOSURE_WAVELENGTHS.map((wavelength) => <option key={wavelength} value={wavelength}>≈{wavelength} nm (h-line)</option>)}</select></label>
-              </> : <label className="full-width">Oxide<select value={metalOxideFamily} onChange={(event) => { setMetalOxideFamily(event.target.value); setCoatingPresetId(""); }}><option value="">All oxides</option>{METAL_OXIDE_FAMILIES.map((family) => <option key={family} value={family}>{family}</option>)}</select></label>}
-              <label className="full-width">Reference process <span>{filteredCoatings.length}/{coatingLibrarySize}</span><select value={coatingPresetId} onChange={applyCoatingPreset}><option value="">Custom calibration</option>{coatingLibrary === "photoresist" ? filteredPhotoresists.map((preset) => <option key={preset.id} value={preset.id}>{preset.manufacturer} · {preset.name} · {preset.referenceThicknessNm / 1000} µm @ {preset.referenceRpm} rpm</option>) : filteredMetalOxides.map((preset) => <option key={preset.id} value={preset.id}>{preset.family} · {preset.name} · {preset.referenceThicknessNm} nm @ {preset.referenceRpm} rpm</option>)}</select></label>
-              <label>Film thickness <span>nm</span><input type="number" min="1" value={referenceThickness} onChange={(event) => setReferenceThickness(bounded(Number(event.target.value), referenceThickness, 1, 1e6))} /></label>
-              <label>Reference speed <span>rpm</span><input type="number" min="1" value={referenceRpm} onChange={(event) => setReferenceRpm(bounded(Number(event.target.value), referenceRpm, 1, 100000))} /></label>
-              <label>Simulated speed <span>rpm</span><input type="number" min="1" value={rpm} onChange={(event) => setRpm(bounded(Number(event.target.value), rpm, 1, 100000))} /></label>
-              <label>Exponent n<input type="number" min="0" max="2" step="0.05" value={exponent} onChange={(event) => setExponent(bounded(Number(event.target.value), exponent, 0, 2))} /></label>
-              <label>Shrinkage <span>%</span><input type="number" min="0" max="95" value={shrinkage} onChange={(event) => setShrinkage(bounded(Number(event.target.value), shrinkage, 0, 95))} /></label>
-              <label>Leveling strength <span>{levelingStrength}%</span><input className="spin-range" type="range" min="0" max="100" value={levelingStrength} onChange={(event) => setLevelingStrength(Number(event.target.value))} /></label>
-              <label className="full-width">Lateral leveling length <span>µm</span><input type="number" min="0" step="0.5" value={levelingLength} onChange={(event) => setLevelingLength(bounded(Number(event.target.value), levelingLength, 0, 1e6))} /></label>
-            </div>
-            {photoresistPreset && <aside className="spin-reference" aria-live="polite"><b>{photoresistPreset.name} · {photoresistPreset.tone}</b>{photoresistPreset.exposureWavelengthsNm && <span>Verified exposure lines: {photoresistPreset.exposureWavelengthsNm.join(", ")} nm.</span>}<span>{photoresistPreset.evidence}. Loaded with generic n = 0.5 and 0% additional shrinkage.</span><a href={photoresistPreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</a></aside>}
-            {metalOxidePreset && <aside className="spin-reference" aria-live="polite"><b>{metalOxidePreset.family} · {metalOxidePreset.name}</b><span>{metalOxidePreset.precursor} on {metalOxidePreset.substrate}. {metalOxidePreset.cycles} coat(s), {metalOxidePreset.spinSeconds} s; {metalOxidePreset.thermalTreatment}. {metalOxidePreset.phase}.</span><span>{metalOxidePreset.evidence}. The loaded value is the published final dry thickness; n = 0.5 remains a generic extrapolation.</span><a href={metalOxidePreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</a></aside>}
+                <Column sm={4} md={4} lg={8}><Select id="photoresist-polarity" labelText="Polarity" size="md" value={photoresistPolarity} onChange={(event) => { setPhotoresistPolarity(event.target.value); setCoatingPresetId(""); }}><SelectItem value="" text="All polarities" />{PHOTORESIST_POLARITIES.map((polarity) => <SelectItem key={polarity} value={polarity} text={polarity} />)}</Select></Column>
+                <Column sm={4} md={4} lg={8}><Select id="photoresist-brand" labelText="Brand" size="md" value={photoresistManufacturer} onChange={(event) => { setPhotoresistManufacturer(event.target.value); setCoatingPresetId(""); }}><SelectItem value="" text="All brands" />{PHOTORESIST_MANUFACTURERS.map((manufacturer) => <SelectItem key={manufacturer} value={manufacturer} text={manufacturer} />)}</Select></Column>
+                <Column sm={4} md={8} lg={16}><Select id="photoresist-exposure" labelText="Exposure" size="md" value={photoresistExposureNm} onChange={(event) => { setPhotoresistExposureNm(event.target.value); setCoatingPresetId(""); }}><SelectItem value="" text="All wavelengths" />{PHOTORESIST_EXPOSURE_WAVELENGTHS.map((wavelength) => <SelectItem key={wavelength} value={wavelength} text={`≈${wavelength} nm (h-line)`} />)}</Select></Column>
+              </> : <Column sm={4} md={8} lg={16}><Select id="metal-oxide-family" labelText="Oxide" size="md" value={metalOxideFamily} onChange={(event) => { setMetalOxideFamily(event.target.value); setCoatingPresetId(""); }}><SelectItem value="" text="All oxides" />{METAL_OXIDE_FAMILIES.map((family) => <SelectItem key={family} value={family} text={family} />)}</Select></Column>}
+              <Column sm={4} md={8} lg={16}><Select id="reference-process" labelText={`Reference process (${filteredCoatings.length}/${coatingLibrarySize})`} size="md" value={coatingPresetId} onChange={applyCoatingPreset}><SelectItem value="" text="Custom calibration" />{coatingLibrary === "photoresist" ? filteredPhotoresists.map((preset) => <SelectItem key={preset.id} value={preset.id} text={`${preset.name} · ${preset.referenceThicknessNm / 1000} µm`} />) : filteredMetalOxides.map((preset) => <SelectItem key={preset.id} value={preset.id} text={`${preset.family} · ${preset.name} · ${preset.referenceThicknessNm} nm`} />)}</Select></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="film-thickness" label="Film thickness" unit="nm" value={referenceThickness} min={1} max={1e6} onValue={(value) => setReferenceThickness(bounded(value, referenceThickness, 1, 1e6))} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="reference-speed" label="Reference speed" unit="rpm" value={referenceRpm} min={1} max={100000} onValue={(value) => setReferenceRpm(bounded(value, referenceRpm, 1, 100000))} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="simulated-speed" label="Simulated speed" unit="rpm" value={rpm} min={1} max={100000} onValue={(value) => setRpm(bounded(value, rpm, 1, 100000))} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="exponent" label="Exponent n" value={exponent} min={0} max={2} step={0.05} onValue={(value) => setExponent(bounded(value, exponent, 0, 2))} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="shrinkage" label="Shrinkage" unit="%" value={shrinkage} min={0} max={95} onValue={(value) => setShrinkage(bounded(value, shrinkage, 0, 95))} /></Column>
+              <Column sm={4} md={8} lg={16}><Slider id="leveling-strength" className="spin-range" labelText="Leveling strength (%)" min={0} max={100} hideTextInput formatLabel={(value) => `${value}%`} value={levelingStrength} onChange={({ value }) => setLevelingStrength(Number(value))} /></Column>
+              <Column sm={4} md={8} lg={16}><NumberField id="leveling-length" label="Lateral leveling length" unit="µm" value={levelingLength} min={0} max={1e6} step={0.5} onValue={(value) => setLevelingLength(bounded(value, levelingLength, 0, 1e6))} /></Column>
+            </Grid>
+            {photoresistPreset && <Tile className="spin-reference" aria-live="polite"><b>{photoresistPreset.name} · {photoresistPreset.tone}</b>{photoresistPreset.exposureWavelengthsNm && <span>Verified exposure lines: {photoresistPreset.exposureWavelengthsNm.join(", ")} nm.</span>}<span>{photoresistPreset.evidence}. Loaded with generic n = 0.5 and 0% additional shrinkage.</span><Link href={photoresistPreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</Link></Tile>}
+            {metalOxidePreset && <Tile className="spin-reference" aria-live="polite"><b>{metalOxidePreset.family} · {metalOxidePreset.name}</b><span>{metalOxidePreset.precursor} on {metalOxidePreset.substrate}. {metalOxidePreset.cycles} coat(s), {metalOxidePreset.spinSeconds} s; {metalOxidePreset.thermalTreatment}. {metalOxidePreset.phase}.</span><span>{metalOxidePreset.evidence}. The loaded value is the published final dry thickness; n = 0.5 remains a generic extrapolation.</span><Link href={metalOxidePreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</Link></Tile>}
             <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
           </section>}
           </div>
-        </aside>}
+        </Layer></>}
 
         <section className="spin-preview" aria-label="Coating results">
           <div className="spin-preview-head">
             <div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>
-            {section && <div className="spin-actions"><button onClick={exportPng}>Export PNG</button><button onClick={exportModel}>Export JSON</button></div>}
+            {section && <div className="spin-actions"><Button kind="secondary" size="md" onClick={exportPng}>Export PNG</Button><Button kind="secondary" size="md" onClick={exportModel}>Export JSON</Button></div>}
           </div>
           {section ? <>
           <canvas
@@ -465,12 +502,12 @@ export default function SpinCoatPage() {
           <div className="spin-readout" id="spin-readout"><span>x = {cursorX.toFixed(2)} µm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
 
           <div className="spin-metrics">
-            <article><p>CALIBRATED DRY FILM</p><strong>{dryThickness.toFixed(1)} nm</strong></article>
-            <article><p>AFTER SHRINKAGE</p><strong>{finalThickness.toFixed(1)} nm</strong></article>
-            <article><p>LOCAL RANGE</p><strong>{section.film.minimumThicknessNm.toFixed(1)}–{section.film.maximumThicknessNm.toFixed(1)} nm</strong></article>
-            <article><p>MEAN / MASS CHECK</p><strong>{section.film.meanThicknessNm.toFixed(1)} nm</strong></article>
-            <article><p>PLANARIZATION (DOP)</p><strong>{section.film.degreeOfPlanarizationPercent.toFixed(1)}%</strong></article>
-            <article><p>THICKNESS NON-UNIFORMITY</p><strong>{section.film.thicknessNonUniformityPercent.toFixed(1)}%</strong></article>
+            <Tile><p>CALIBRATED DRY FILM</p><strong>{dryThickness.toFixed(1)} nm</strong></Tile>
+            <Tile><p>AFTER SHRINKAGE</p><strong>{finalThickness.toFixed(1)} nm</strong></Tile>
+            <Tile><p>LOCAL RANGE</p><strong>{section.film.minimumThicknessNm.toFixed(1)}–{section.film.maximumThicknessNm.toFixed(1)} nm</strong></Tile>
+            <Tile><p>MEAN / MASS CHECK</p><strong>{section.film.meanThicknessNm.toFixed(1)} nm</strong></Tile>
+            <Tile><p>PLANARIZATION (DOP)</p><strong>{section.film.degreeOfPlanarizationPercent.toFixed(1)}%</strong></Tile>
+            <Tile><p>THICKNESS NON-UNIFORMITY</p><strong>{section.film.thicknessNonUniformityPercent.toFixed(1)}%</strong></Tile>
           </div>
 
           <div className="spin-legend">
@@ -479,12 +516,8 @@ export default function SpinCoatPage() {
             <span><i style={{ background: "#ff5a1f" }} />Spin-coated {metalOxidePreset?.family ?? "film"}</span>
           </div>
 
-          <details className="spin-validity">
-            <summary>Model boundary</summary>
-            <p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>
-            {section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}
-          </details>
-          </> : <div className="spin-empty-state"><strong>No coating profile yet</strong><p>Load a GDS file or use the example to calculate and display the cross-section.</p><button type="button" onClick={loadDemo}>Load example</button></div>}
+          <Accordion align="start" size="md" className="spin-validity"><AccordionItem title="Model boundary"><p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>{section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}</AccordionItem></Accordion>
+          </> : <div className="spin-empty-state"><strong>No coating profile yet</strong><p>Load a GDS file or use the example to calculate and display the cross-section.</p><Button kind="primary" size="md" onClick={loadDemo}>Load example</Button></div>}
         </section>
       </section>
       <footer className="spin-status" data-ready={Boolean(section)} aria-label="Simulation status">
@@ -495,7 +528,7 @@ export default function SpinCoatPage() {
           <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
         </dl>
       </footer>
-      </div>
-    </main>
+      </Column>
+    </Grid>
   );
 }

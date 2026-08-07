@@ -10,7 +10,7 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(html, /<title>SpinCoatSim/);
   assert.match(html, /favicon\.svg/);
   assert.match(html, /viewport-fit=cover/);
-  assert.match(html, /fonts\.googleapis\.com/);
+  assert.doesNotMatch(html, /fonts\.googleapis\.com/);
   for (const metadata of ["theme-color", "canonical", "og:site_name", "og:url", "og:image:alt", "twitter:title", "twitter:description", "twitter:image:alt"]) {
     assert.match(html, new RegExp(metadata));
   }
@@ -42,7 +42,10 @@ test("exports the SpinCoatSim application", async () => {
   const carbon = await readFile(new URL("../src/carbon.scss", import.meta.url), "utf8");
   assert.match(carbon, /@use ["']@carbon\/react["']/);
   assert.doesNotMatch(styles, /tailwindcss|@theme inline/);
-  assert.match(source, /<main className="spin-app"/);
+  for (const component of ["Grid", "NumberInput", "Select", "Slider", "Accordion", "FileUploaderButton"]) {
+    assert.match(source, new RegExp(`<${component}`));
+  }
+  assert.match(source, /<Grid as="main"/);
   assert.match(styles, /overflow-x: clip/);
   assert.doesNotMatch(styles, /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|100vw|transition:\s*all/i);
   assert.match(tokens, /--color-accent: oklch\(/);

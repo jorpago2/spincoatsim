@@ -3,6 +3,16 @@
     "date": "2026-08-07",
     "scope": "app",
     "macrostructure": "Workbench",
+    "theme": "Carbon g10",
+    "enrichment": "none",
+    "nav": "Carbon workflow rail / bottom actions",
+    "footer": "scientific status strip",
+    "brief": "Full Carbon migration and responsive panel correction"
+  },
+  {
+    "date": "2026-08-07",
+    "scope": "app",
+    "macrostructure": "Workbench",
     "theme": "Carbon scientific shell",
     "enrichment": "none",
     "nav": "workflow rail / bottom bar",
