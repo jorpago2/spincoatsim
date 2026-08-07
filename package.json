@@ -35,6 +35,7 @@
     "eslint-plugin-react-refresh": "0.5.3",
     "eslint-plugin-storybook": "10.5.7",
     "globals": "17.8.0",
+    "playwright": "1.62.1",
     "sass": "1.102.0",
     "storybook": "10.5.7",
     "typescript": "6.0.2",
