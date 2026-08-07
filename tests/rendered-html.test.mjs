@@ -51,4 +51,7 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(tokens, /--color-accent: oklch\(/);
   assert.match(tokens, /--color-plot-background:\s*var\(--color-viewer-deep\)/);
   assert.match(tokens, /--color-plot-cursor:\s*var\(--color-viewer-grid\)/);
+  assert.match(tokens, /:root,\s*\.cds--g10\s*\{[\s\S]*--cds-background:\s*var\(--color-paper\)/);
+  assert.match(tokens, /--cds-button-primary:\s*var\(--color-accent-strong\)/);
+  assert.match(tokens, /--cds-support-success:\s*var\(--color-success\)/);
 });
