@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-08-07",
+    "scope": "scientific result",
+    "macrostructure": "Workbench",
+    "theme": "Carbon g10 + low-cost scientific viewer",
+    "enrichment": "none",
+    "nav": "Carbon workflow rail / bottom actions",
+    "footer": "scientific status strip",
+    "brief": "Align SpinCoatSim result palette with Low-Cost-GDS"
+  },
+  {
+    "date": "2026-08-07",
     "scope": "app",
     "macrostructure": "Workbench",
     "theme": "Carbon g10",

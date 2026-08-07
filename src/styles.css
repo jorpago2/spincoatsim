@@ -1,5 +1,5 @@
 /* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5
- * genre: modern-minimal · macrostructure: Workbench · design-system: Carbon g10 · designed-as-app
+ * genre: modern-minimal · macrostructure: Workbench · design-system: Carbon g10 + low-cost scientific viewer · designed-as-app
  * nav: workflow rail / bottom bar · footer: status strip · scientific exception: canvas and legend
  */
 @import "../tokens.css";
@@ -184,7 +184,7 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-preview-head { display: grid; gap: var(--space-xs); margin-block-end: var(--space-sm); }
 .spin-preview-head h2 { min-width: 0; margin: 0; font-size: var(--text-lg); font-weight: 600; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .spin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs); }
-.spin-canvas { inline-size: 100%; block-size: auto; display: block; aspect-ratio: 1200 / 650; border: var(--rule-hair) solid var(--cds-border-strong-01); background: var(--color-plot-background); cursor: crosshair; }
+.spin-canvas { inline-size: 100%; block-size: auto; display: block; aspect-ratio: 1200 / 650; border: var(--rule-hair) solid var(--color-viewer); background: var(--color-plot-background); cursor: crosshair; }
 .spin-readout { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2xs); margin-block-start: var(--space-2xs); color: var(--cds-text-secondary); font-family: var(--font-mono); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .spin-readout strong { color: var(--cds-link-primary); }
 .spin-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rule-hair); margin-block-start: var(--space-md); overflow: clip; border: var(--rule-hair) solid var(--cds-border-subtle-01); background: var(--cds-border-subtle-01); }
