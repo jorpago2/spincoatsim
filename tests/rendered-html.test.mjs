@@ -45,9 +45,14 @@ test("exports the SpinCoatSim application", async () => {
   const carbon = await readFile(new URL("../src/carbon.scss", import.meta.url), "utf8");
   assert.match(carbon, /@use ["']@carbon\/react["']/);
   assert.doesNotMatch(styles, /tailwindcss|@theme inline/);
-  for (const component of ["Grid", "NumberInput", "Select", "Slider", "Accordion", "FileUploaderButton"]) {
+  for (const component of ["Grid", "NumberInput", "Select", "ComboBox", "Slider", "Accordion", "InlineNotification", "FileUploaderButton"]) {
     assert.match(source, new RegExp(`<${component}`));
   }
+  assert.match(source, /restoreCustomCalibration/);
+  assert.match(source, /Results update automatically/);
+  assert.match(source, /Reference process comparison/);
+  assert.match(source, /provenance: parameterProvenance/);
+  assert.match(source, /Export ready/);
   assert.match(source, /<Grid as="main"/);
   assert.match(styles, /overflow-x: clip/);
   assert.doesNotMatch(styles, /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|100vw|transition:\s*all/i);

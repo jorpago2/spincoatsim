@@ -6,17 +6,20 @@ import {
   AccordionItem,
   Button,
   Column,
+  ComboBox,
   FileUploaderButton,
   Grid,
   Header,
   HeaderName,
   IconButton,
+  InlineNotification,
   Layer,
   Link,
   NumberInput,
   Select,
   SelectItem,
   Slider,
+  Tag,
   TextInput,
   Tile,
 } from "@carbon/react";
@@ -37,6 +40,25 @@ type LayerMode = "uniform" | "patterned" | "etch";
 type StackLayer = { id: number; name: string; mode: LayerMode; thicknessNm: number; gdsLayer: number; color: string };
 type MaterialSegment = { name: string; color: string; bottom: number; top: number };
 type ToolPanel = "input" | "stack" | "coating";
+type Provenance = "Reference" | "Edited" | "Model default" | "Custom";
+type CalibrationState = {
+  referenceThickness: number;
+  referenceRpm: number;
+  rpm: number;
+  exponent: number;
+  shrinkage: number;
+};
+type CalibrationField = keyof CalibrationState;
+type CoatingReference = {
+  id: string;
+  label: string;
+  name: string;
+  detail: string;
+  referenceThicknessNm: number;
+  referenceRpm: number;
+  sourceUrl: string;
+};
+type ExportNotice = { fileName: string; context: string };
 type SectionResult = {
   columns: MaterialSegment[][];
   film: {
@@ -62,6 +84,13 @@ const DEMO_SHAPES: GdsShape[] = [
 
 const COLORS = ["#f0b84a", "#75b9c8", "#a28fe0", "#e67f65", "#93ba72", "#d986b5"];
 const RESOLUTION = 480;
+const INITIAL_CUSTOM_CALIBRATION: CalibrationState = {
+  referenceThickness: 180,
+  referenceRpm: 3000,
+  rpm: 3000,
+  exponent: 0.5,
+  shrinkage: 25,
+};
 
 function bounded(value: number, fallback: number, minimum: number, maximum: number) {
   return Number.isFinite(value) ? Math.max(minimum, Math.min(maximum, value)) : fallback;
@@ -75,21 +104,32 @@ type NumberFieldProps = {
   min: number;
   max: number;
   step?: number;
+  provenance?: Provenance;
   onValue: (value: number) => void;
 };
 
-function NumberField({ id, label, unit, value, min, max, step, onValue }: NumberFieldProps) {
-  return <NumberInput
-    id={id}
-    label={`${label}${unit ? ` (${unit})` : ""}`}
-    value={value}
-    min={min}
-    max={max}
-    step={step}
-    size="md"
-    disableWheel
-    onChange={(_, state) => onValue(Number(state.value))}
-  />;
+const provenanceTagType: Record<Provenance, "teal" | "purple" | "warm-gray" | "gray"> = {
+  Reference: "teal",
+  Edited: "purple",
+  "Model default": "warm-gray",
+  Custom: "gray",
+};
+
+function NumberField({ id, label, unit, value, min, max, step, provenance, onValue }: NumberFieldProps) {
+  return <div className="spin-number-field">
+    <NumberInput
+      id={id}
+      label={`${label}${unit ? ` (${unit})` : ""}`}
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      size="md"
+      disableWheel
+      onChange={(_, state) => onValue(Number(state.value))}
+    />
+    {provenance && <Tag className="spin-provenance-tag" size="sm" type={provenanceTagType[provenance]}>{provenance}</Tag>}
+  </div>;
 }
 
 function saveBlob(blob: Blob, name: string) {
@@ -115,23 +155,27 @@ export default function SpinCoatPage() {
     { id: 1, name: "SiO₂", mode: "uniform", thicknessNm: 300, gdsLayer: 1, color: "#75b9c8" },
     { id: 2, name: "Ti/Au", mode: "patterned", thicknessNm: 120, gdsLayer: 1, color: "#f0b84a" },
   ]);
-  const [referenceThickness, setReferenceThickness] = useState(180);
-  const [referenceRpm, setReferenceRpm] = useState(3000);
-  const [rpm, setRpm] = useState(3000);
-  const [exponent, setExponent] = useState(0.5);
+  const [referenceThickness, setReferenceThickness] = useState(INITIAL_CUSTOM_CALIBRATION.referenceThickness);
+  const [referenceRpm, setReferenceRpm] = useState(INITIAL_CUSTOM_CALIBRATION.referenceRpm);
+  const [rpm, setRpm] = useState(INITIAL_CUSTOM_CALIBRATION.rpm);
+  const [exponent, setExponent] = useState(INITIAL_CUSTOM_CALIBRATION.exponent);
   const [coatingLibrary, setCoatingLibrary] = useState<"photoresist" | "oxide">("photoresist");
   const [coatingPresetId, setCoatingPresetId] = useState("");
   const [photoresistPolarity, setPhotoresistPolarity] = useState("");
   const [photoresistManufacturer, setPhotoresistManufacturer] = useState("");
   const [photoresistExposureNm, setPhotoresistExposureNm] = useState("");
   const [metalOxideFamily, setMetalOxideFamily] = useState("");
-  const [shrinkage, setShrinkage] = useState(25);
+  const [shrinkage, setShrinkage] = useState(INITIAL_CUSTOM_CALIBRATION.shrinkage);
   const [levelingStrength, setLevelingStrength] = useState(65);
   const [levelingLength, setLevelingLength] = useState(8);
   const [cursorIndex, setCursorIndex] = useState(Math.floor(RESOLUTION / 2));
   const [canvasCssWidth, setCanvasCssWidth] = useState(1200);
   const [error, setError] = useState("");
   const [activePanel, setActivePanel] = useState<ToolPanel | null>(null);
+  const [lastUpdated, setLastUpdated] = useState("");
+  const [resultsFresh, setResultsFresh] = useState(false);
+  const [exportNotice, setExportNotice] = useState<ExportNotice | null>(null);
+  const customCalibration = useRef<CalibrationState>({ ...INITIAL_CUSTOM_CALIBRATION });
 
   const revealResults = () => {
     setActivePanel(null);
@@ -172,14 +216,48 @@ export default function SpinCoatPage() {
   const photoresistPreset = coatingLibrary === "photoresist" ? PHOTORESIST_PRESETS.find((preset) => preset.id === coatingPresetId) : undefined;
   const metalOxidePreset = coatingLibrary === "oxide" ? METAL_OXIDE_PRESETS.find((preset) => preset.id === coatingPresetId) : undefined;
   const coatingPreset = photoresistPreset ?? metalOxidePreset;
-  const filteredPhotoresists = filterPhotoresists(photoresistPolarity, photoresistManufacturer, photoresistExposureNm);
-  const filteredMetalOxides = filterMetalOxides(metalOxideFamily);
-  const filteredCoatings = coatingLibrary === "photoresist" ? filteredPhotoresists : filteredMetalOxides;
+  const coatingReferences = useMemo<CoatingReference[]>(() => coatingLibrary === "photoresist"
+    ? filterPhotoresists(photoresistPolarity, photoresistManufacturer, photoresistExposureNm).map((preset) => ({
+      id: preset.id,
+      label: `${preset.name} · ${preset.referenceThicknessNm / 1000} µm`,
+      name: preset.name,
+      detail: `${preset.manufacturer} · ${preset.tone}`,
+      referenceThicknessNm: preset.referenceThicknessNm,
+      referenceRpm: preset.referenceRpm,
+      sourceUrl: preset.sourceUrl,
+    }))
+    : filterMetalOxides(metalOxideFamily).map((preset) => ({
+      id: preset.id,
+      label: `${preset.family} · ${preset.name} · ${preset.referenceThicknessNm} nm`,
+      name: `${preset.family} · ${preset.name}`,
+      detail: `${preset.cycles} coat${preset.cycles === 1 ? "" : "s"} · ${preset.substrate}`,
+      referenceThicknessNm: preset.referenceThicknessNm,
+      referenceRpm: preset.referenceRpm,
+      sourceUrl: preset.sourceUrl,
+    })), [coatingLibrary, metalOxideFamily, photoresistExposureNm, photoresistManufacturer, photoresistPolarity]);
   const coatingLibrarySize = coatingLibrary === "photoresist" ? PHOTORESIST_PRESETS.length : METAL_OXIDE_PRESETS.length;
+  const selectedReference = coatingReferences.find((reference) => reference.id === coatingPresetId) ?? null;
+  const comparisonReferences = useMemo(() => {
+    if (!selectedReference) return coatingReferences.slice(0, 3);
+    const nearby = coatingReferences
+      .filter((reference) => reference.id !== selectedReference.id)
+      .sort((a, b) => Math.abs(a.referenceThicknessNm - selectedReference.referenceThicknessNm) - Math.abs(b.referenceThicknessNm - selectedReference.referenceThicknessNm));
+    return [selectedReference, ...nearby.slice(0, 2)];
+  }, [coatingReferences, selectedReference]);
   const xMin = centreX - viewWidth / 2;
   const xMax = centreX + viewWidth / 2;
   const dryThickness = calibratedThickness(referenceThickness, referenceRpm, rpm, exponent);
   const finalThickness = dryThickness * (1 - shrinkage / 100);
+  const parameterProvenance = {
+    referenceThicknessNm: !coatingPreset ? "Custom" : referenceThickness === coatingPreset.referenceThicknessNm ? "Reference" : "Edited",
+    referenceRpm: !coatingPreset ? "Custom" : referenceRpm === coatingPreset.referenceRpm ? "Reference" : "Edited",
+    rpm: !coatingPreset ? "Custom" : rpm === coatingPreset.referenceRpm ? "Reference" : "Edited",
+    exponent: exponent === 0.5 ? "Model default" : "Edited",
+    shrinkagePercent: !coatingPreset ? "Custom" : shrinkage === 0 ? "Model default" : "Edited",
+    levelingStrengthPercent: levelingStrength === 65 ? "Model default" : "Edited",
+    levelingLengthMicrometers: levelingLength === 8 ? "Model default" : "Edited",
+  } satisfies Record<string, Provenance>;
+  const hasReferenceEdits = Boolean(coatingPreset) && Object.values(parameterProvenance).includes("Edited");
 
   const section = useMemo<SectionResult | null>(() => {
     if (!shapes.length) return null;
@@ -199,6 +277,19 @@ export default function SpinCoatPage() {
       ignoredPaths: slices.reduce((sum, slice) => sum + slice.ignoredPaths, 0),
     };
   }, [shapes, layers, sliceY, xMin, xMax, substrateThickness, finalThickness, levelingStrength, levelingLength, viewWidth]);
+
+  useEffect(() => {
+    if (!section) return;
+    const updateTimer = window.setTimeout(() => {
+      setLastUpdated(new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date()));
+      setResultsFresh(true);
+    }, 0);
+    const freshnessTimer = window.setTimeout(() => setResultsFresh(false), 900);
+    return () => {
+      window.clearTimeout(updateTimer);
+      window.clearTimeout(freshnessTimer);
+    };
+  }, [section]);
 
   useEffect(() => {
     const element = canvas.current;
@@ -357,14 +448,37 @@ export default function SpinCoatPage() {
     }]);
   }
 
-  function applyCoatingPreset(event: ChangeEvent<HTMLSelectElement>) {
-    const presets = coatingLibrary === "photoresist" ? PHOTORESIST_PRESETS : METAL_OXIDE_PRESETS;
-    const preset = presets.find((item) => item.id === event.target.value);
-    setCoatingPresetId(event.target.value);
-    if (!preset) return;
-    setReferenceThickness(preset.referenceThicknessNm);
-    setReferenceRpm(preset.referenceRpm);
-    setRpm(preset.referenceRpm);
+  function setCalibrationValue(field: CalibrationField, value: number) {
+    if (!coatingPresetId) customCalibration.current = { ...customCalibration.current, [field]: value };
+    if (field === "referenceThickness") setReferenceThickness(value);
+    if (field === "referenceRpm") setReferenceRpm(value);
+    if (field === "rpm") setRpm(value);
+    if (field === "exponent") setExponent(value);
+    if (field === "shrinkage") setShrinkage(value);
+  }
+
+  function restoreCustomCalibration() {
+    const custom = customCalibration.current;
+    setCoatingPresetId("");
+    setReferenceThickness(custom.referenceThickness);
+    setReferenceRpm(custom.referenceRpm);
+    setRpm(custom.rpm);
+    setExponent(custom.exponent);
+    setShrinkage(custom.shrinkage);
+  }
+
+  function applyCoatingReference(reference: CoatingReference | null) {
+    if (!reference) {
+      restoreCustomCalibration();
+      return;
+    }
+    if (!coatingPresetId) {
+      customCalibration.current = { referenceThickness, referenceRpm, rpm, exponent, shrinkage };
+    }
+    setCoatingPresetId(reference.id);
+    setReferenceThickness(reference.referenceThicknessNm);
+    setReferenceRpm(reference.referenceRpm);
+    setRpm(reference.referenceRpm);
     setExponent(0.5);
     setShrinkage(0);
   }
@@ -372,17 +486,24 @@ export default function SpinCoatPage() {
   function exportModel() {
     if (!section) return;
     const data = {
-      schema: "spincoatsim-model/v2",
+      schema: "spincoatsim-model/v3",
       source: { fileName, topCell, sliceYMicrometers: sliceY, centreXMicrometers: centreX, widthMicrometers: viewWidth },
       stack: { substrateThicknessNm: substrateThickness, layers },
-      coating: { referencePreset: coatingPreset ? { category: coatingLibrary, id: coatingPreset.id, name: coatingPreset.name, sourceUrl: coatingPreset.sourceUrl } : null, referenceThicknessNm: referenceThickness, referenceRpm, rpm, exponent, shrinkagePercent: shrinkage, levelingStrengthPercent: levelingStrength, levelingLengthMicrometers: levelingLength, predictedFinalThicknessNm: finalThickness },
+      coating: { referencePreset: coatingPreset ? { category: coatingLibrary, id: coatingPreset.id, name: coatingPreset.name, sourceUrl: coatingPreset.sourceUrl } : null, referenceThicknessNm: referenceThickness, referenceRpm, rpm, exponent, shrinkagePercent: shrinkage, levelingStrengthPercent: levelingStrength, levelingLengthMicrometers: levelingLength, predictedFinalThicknessNm: finalThickness, provenance: parameterProvenance },
       result: { minimumThicknessNm: section.film.minimumThicknessNm, meanThicknessNm: section.film.meanThicknessNm, maximumThicknessNm: section.film.maximumThicknessNm, degreeOfPlanarizationPercent: section.film.degreeOfPlanarizationPercent, thicknessNonUniformityPercent: section.film.thicknessNonUniformityPercent },
     };
-    saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "spincoat-model.json");
+    const exportedFileName = "spincoat-model.json";
+    saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), exportedFileName);
+    setExportNotice({ fileName: exportedFileName, context: `${coatingPreset?.name ?? "Custom calibration"} · ${rpm} rpm · ${finalThickness.toFixed(1)} nm predicted` });
   }
 
   function exportPng() {
-    canvas.current?.toBlob((blob) => { if (blob) saveBlob(blob, "spincoat-section.png"); }, "image/png");
+    canvas.current?.toBlob((blob) => {
+      if (!blob) return;
+      const exportedFileName = "spincoat-section.png";
+      saveBlob(blob, exportedFileName);
+      setExportNotice({ fileName: exportedFileName, context: `${coatingPreset?.name ?? "Custom calibration"} · ${rpm} rpm · ${finalThickness.toFixed(1)} nm predicted` });
+    }, "image/png");
   }
 
   const localThickness = section?.film.localThickness[Math.max(0, Math.min(RESOLUTION - 1, cursorIndex))] ?? 0;
@@ -451,20 +572,51 @@ export default function SpinCoatPage() {
 
           {activePanel === "coating" && <section className="spin-control-section">
             <Grid condensed className="spin-fields">
-              <Column sm={4} md={8} lg={16}><Select id="coating-library" labelText="Coating library" size="md" value={coatingLibrary} onChange={(event) => { setCoatingLibrary(event.target.value as "photoresist" | "oxide"); setCoatingPresetId(""); }}><SelectItem value="photoresist" text="Photoresists" /><SelectItem value="oxide" text="Metal oxides" /></Select></Column>
+              <Column sm={4} md={8} lg={16}><Select id="coating-library" labelText="Coating library" size="md" value={coatingLibrary} onChange={(event) => { restoreCustomCalibration(); setCoatingLibrary(event.target.value as "photoresist" | "oxide"); }}><SelectItem value="photoresist" text="Photoresists" /><SelectItem value="oxide" text="Metal oxides" /></Select></Column>
               {coatingLibrary === "photoresist" ? <>
-                <Column sm={4} md={4} lg={8}><Select id="photoresist-polarity" labelText="Polarity" size="md" value={photoresistPolarity} onChange={(event) => { setPhotoresistPolarity(event.target.value); setCoatingPresetId(""); }}><SelectItem value="" text="All polarities" />{PHOTORESIST_POLARITIES.map((polarity) => <SelectItem key={polarity} value={polarity} text={polarity} />)}</Select></Column>
-                <Column sm={4} md={4} lg={8}><Select id="photoresist-brand" labelText="Brand" size="md" value={photoresistManufacturer} onChange={(event) => { setPhotoresistManufacturer(event.target.value); setCoatingPresetId(""); }}><SelectItem value="" text="All brands" />{PHOTORESIST_MANUFACTURERS.map((manufacturer) => <SelectItem key={manufacturer} value={manufacturer} text={manufacturer} />)}</Select></Column>
-                <Column sm={4} md={8} lg={16}><Select id="photoresist-exposure" labelText="Exposure" size="md" value={photoresistExposureNm} onChange={(event) => { setPhotoresistExposureNm(event.target.value); setCoatingPresetId(""); }}><SelectItem value="" text="All wavelengths" />{PHOTORESIST_EXPOSURE_WAVELENGTHS.map((wavelength) => <SelectItem key={wavelength} value={wavelength} text={`≈${wavelength} nm (h-line)`} />)}</Select></Column>
-              </> : <Column sm={4} md={8} lg={16}><Select id="metal-oxide-family" labelText="Oxide" size="md" value={metalOxideFamily} onChange={(event) => { setMetalOxideFamily(event.target.value); setCoatingPresetId(""); }}><SelectItem value="" text="All oxides" />{METAL_OXIDE_FAMILIES.map((family) => <SelectItem key={family} value={family} text={family} />)}</Select></Column>}
-              <Column sm={4} md={8} lg={16}><Select id="reference-process" labelText={`Reference process (${filteredCoatings.length}/${coatingLibrarySize})`} size="md" value={coatingPresetId} onChange={applyCoatingPreset}><SelectItem value="" text="Custom calibration" />{coatingLibrary === "photoresist" ? filteredPhotoresists.map((preset) => <SelectItem key={preset.id} value={preset.id} text={`${preset.name} · ${preset.referenceThicknessNm / 1000} µm`} />) : filteredMetalOxides.map((preset) => <SelectItem key={preset.id} value={preset.id} text={`${preset.family} · ${preset.name} · ${preset.referenceThicknessNm} nm`} />)}</Select></Column>
-              <Column sm={4} md={4} lg={8}><NumberField id="film-thickness" label="Film thickness" unit="nm" value={referenceThickness} min={1} max={1e6} onValue={(value) => setReferenceThickness(bounded(value, referenceThickness, 1, 1e6))} /></Column>
-              <Column sm={4} md={4} lg={8}><NumberField id="reference-speed" label="Reference speed" unit="rpm" value={referenceRpm} min={1} max={100000} onValue={(value) => setReferenceRpm(bounded(value, referenceRpm, 1, 100000))} /></Column>
-              <Column sm={4} md={4} lg={8}><NumberField id="simulated-speed" label="Simulated speed" unit="rpm" value={rpm} min={1} max={100000} onValue={(value) => setRpm(bounded(value, rpm, 1, 100000))} /></Column>
-              <Column sm={4} md={4} lg={8}><NumberField id="exponent" label="Exponent n" value={exponent} min={0} max={2} step={0.05} onValue={(value) => setExponent(bounded(value, exponent, 0, 2))} /></Column>
-              <Column sm={4} md={4} lg={8}><NumberField id="shrinkage" label="Shrinkage" unit="%" value={shrinkage} min={0} max={95} onValue={(value) => setShrinkage(bounded(value, shrinkage, 0, 95))} /></Column>
-              <Column sm={4} md={8} lg={16}><Slider id="leveling-strength" className="spin-range" labelText="Leveling strength (%)" min={0} max={100} hideTextInput formatLabel={(value) => `${value}%`} value={levelingStrength} onChange={({ value }) => setLevelingStrength(Number(value))} /></Column>
-              <Column sm={4} md={8} lg={16}><NumberField id="leveling-length" label="Lateral leveling length" unit="µm" value={levelingLength} min={0} max={1e6} step={0.5} onValue={(value) => setLevelingLength(bounded(value, levelingLength, 0, 1e6))} /></Column>
+                <Column sm={4} md={4} lg={8}><Select id="photoresist-polarity" labelText="Polarity" size="md" value={photoresistPolarity} onChange={(event) => { restoreCustomCalibration(); setPhotoresistPolarity(event.target.value); }}><SelectItem value="" text="All polarities" />{PHOTORESIST_POLARITIES.map((polarity) => <SelectItem key={polarity} value={polarity} text={polarity} />)}</Select></Column>
+                <Column sm={4} md={4} lg={8}><Select id="photoresist-brand" labelText="Brand" size="md" value={photoresistManufacturer} onChange={(event) => { restoreCustomCalibration(); setPhotoresistManufacturer(event.target.value); }}><SelectItem value="" text="All brands" />{PHOTORESIST_MANUFACTURERS.map((manufacturer) => <SelectItem key={manufacturer} value={manufacturer} text={manufacturer} />)}</Select></Column>
+                <Column sm={4} md={8} lg={16}><Select id="photoresist-exposure" labelText="Exposure" size="md" value={photoresistExposureNm} onChange={(event) => { restoreCustomCalibration(); setPhotoresistExposureNm(event.target.value); }}><SelectItem value="" text="All wavelengths" />{PHOTORESIST_EXPOSURE_WAVELENGTHS.map((wavelength) => <SelectItem key={wavelength} value={wavelength} text={`≈${wavelength} nm (h-line)`} />)}</Select></Column>
+              </> : <Column sm={4} md={8} lg={16}><Select id="metal-oxide-family" labelText="Oxide" size="md" value={metalOxideFamily} onChange={(event) => { restoreCustomCalibration(); setMetalOxideFamily(event.target.value); }}><SelectItem value="" text="All oxides" />{METAL_OXIDE_FAMILIES.map((family) => <SelectItem key={family} value={family} text={family} />)}</Select></Column>}
+              <Column sm={4} md={8} lg={16} className="spin-reference-picker">
+                <ComboBox
+                  id="reference-process"
+                  titleText={`Reference process (${coatingReferences.length}/${coatingLibrarySize})`}
+                  helperText="Type to search by material, brand or thickness. Clear the selection to restore your custom calibration."
+                  placeholder="Custom calibration"
+                  size="md"
+                  autoAlign
+                  items={coatingReferences}
+                  selectedItem={selectedReference}
+                  itemToString={(reference) => reference?.label ?? ""}
+                  shouldFilterItem={({ item, inputValue }) => `${item.label} ${item.detail}`.toLocaleLowerCase().includes((inputValue ?? "").trim().toLocaleLowerCase())}
+                  onChange={({ selectedItem }) => applyCoatingReference(selectedItem ?? null)}
+                />
+                {selectedReference && <Button className="spin-custom-action" kind="ghost" size="sm" onClick={restoreCustomCalibration}>Restore custom calibration</Button>}
+                <Accordion align="start" size="sm" className="spin-reference-compare">
+                  <AccordionItem title={`Compare ${comparisonReferences.length} reference processes`}>
+                    <div className="spin-reference-table-wrap">
+                      <table className="spin-reference-table">
+                        <caption className="visually-hidden">Reference process comparison</caption>
+                        <thead><tr><th scope="col">Reference</th><th scope="col">Film</th><th scope="col">Speed</th><th scope="col">Action</th></tr></thead>
+                        <tbody>{comparisonReferences.map((reference) => <tr key={reference.id}>
+                          <th scope="row"><span>{reference.name}</span><small>{reference.detail}</small><Link href={reference.sourceUrl} target="_blank" rel="noreferrer">Source ↗</Link></th>
+                          <td>{reference.referenceThicknessNm} nm</td>
+                          <td>{reference.referenceRpm} rpm</td>
+                          <td><Button kind="ghost" size="sm" disabled={selectedReference?.id === reference.id} onClick={() => applyCoatingReference(reference)}>{selectedReference?.id === reference.id ? "Using" : "Use"}</Button></td>
+                        </tr>)}</tbody>
+                      </table>
+                    </div>
+                  </AccordionItem>
+                </Accordion>
+              </Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="film-thickness" label="Film thickness" unit="nm" value={referenceThickness} min={1} max={1e6} provenance={parameterProvenance.referenceThicknessNm} onValue={(value) => setCalibrationValue("referenceThickness", bounded(value, referenceThickness, 1, 1e6))} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="reference-speed" label="Reference speed" unit="rpm" value={referenceRpm} min={1} max={100000} provenance={parameterProvenance.referenceRpm} onValue={(value) => setCalibrationValue("referenceRpm", bounded(value, referenceRpm, 1, 100000))} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="simulated-speed" label="Simulated speed" unit="rpm" value={rpm} min={1} max={100000} provenance={parameterProvenance.rpm} onValue={(value) => setCalibrationValue("rpm", bounded(value, rpm, 1, 100000))} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="exponent" label="Exponent n" value={exponent} min={0} max={2} step={0.05} provenance={parameterProvenance.exponent} onValue={(value) => setCalibrationValue("exponent", bounded(value, exponent, 0, 2))} /></Column>
+              <Column sm={4} md={4} lg={8}><NumberField id="shrinkage" label="Shrinkage" unit="%" value={shrinkage} min={0} max={95} provenance={parameterProvenance.shrinkagePercent} onValue={(value) => setCalibrationValue("shrinkage", bounded(value, shrinkage, 0, 95))} /></Column>
+              <Column sm={4} md={8} lg={16}><div className="spin-number-field"><Slider id="leveling-strength" className="spin-range" labelText="Leveling strength (%)" min={0} max={100} hideTextInput formatLabel={(value) => `${value}%`} value={levelingStrength} onChange={({ value }) => setLevelingStrength(Number(value))} /><Tag className="spin-provenance-tag" size="sm" type={provenanceTagType[parameterProvenance.levelingStrengthPercent]}>{parameterProvenance.levelingStrengthPercent}</Tag></div></Column>
+              <Column sm={4} md={8} lg={16}><NumberField id="leveling-length" label="Lateral leveling length" unit="µm" value={levelingLength} min={0} max={1e6} step={0.5} provenance={parameterProvenance.levelingLengthMicrometers} onValue={(value) => setLevelingLength(bounded(value, levelingLength, 0, 1e6))} /></Column>
             </Grid>
             {photoresistPreset && <Tile className="spin-reference" aria-live="polite"><b>{photoresistPreset.name} · {photoresistPreset.tone}</b>{photoresistPreset.exposureWavelengthsNm && <span>Verified exposure lines: {photoresistPreset.exposureWavelengthsNm.join(", ")} nm.</span>}<span>{photoresistPreset.evidence}. Loaded with generic n = 0.5 and 0% additional shrinkage.</span><Link href={photoresistPreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</Link></Tile>}
             {metalOxidePreset && <Tile className="spin-reference" aria-live="polite"><b>{metalOxidePreset.family} · {metalOxidePreset.name}</b><span>{metalOxidePreset.precursor} on {metalOxidePreset.substrate}. {metalOxidePreset.cycles} coat(s), {metalOxidePreset.spinSeconds} s; {metalOxidePreset.thermalTreatment}. {metalOxidePreset.phase}.</span><span>{metalOxidePreset.evidence}. The loaded value is the published final dry thickness; n = 0.5 remains a generic extrapolation.</span><Link href={metalOxidePreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</Link></Tile>}
@@ -476,9 +628,10 @@ export default function SpinCoatPage() {
 
         <section className="spin-preview" aria-label="Coating results">
           <div className="spin-preview-head">
-            <div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>
+            <div><div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>{section && <div className="spin-result-context"><Tag size="sm" type={coatingPreset ? hasReferenceEdits ? "purple" : "teal" : "gray"}>{coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " + edits" : ""}` : "Custom calibration"}</Tag><p className="spin-live-status" data-fresh={resultsFresh} role="status" aria-live="polite"><span aria-hidden="true" />Results update automatically{lastUpdated && <time dateTime={lastUpdated}> · Updated {lastUpdated}</time>}</p></div>}</div>
             {section && <div className="spin-actions"><Button kind="secondary" size="md" onClick={exportPng}>Export PNG</Button><Button kind="secondary" size="md" onClick={exportModel}>Export JSON</Button></div>}
           </div>
+          {exportNotice && <InlineNotification className="spin-export-notice" kind="success" lowContrast role="status" title="Export ready" subtitle={`${exportNotice.fileName} · ${exportNotice.context}`} onClose={() => setExportNotice(null)} />}
           {section ? <>
           <canvas
             ref={canvas}
@@ -501,7 +654,7 @@ export default function SpinCoatPage() {
           />
           <div className="spin-readout" id="spin-readout"><span>x = {cursorX.toFixed(2)} µm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
 
-          <div className="spin-metrics">
+          <div className="spin-metrics" data-fresh={resultsFresh}>
             <Tile><p>CALIBRATED DRY FILM</p><strong>{dryThickness.toFixed(1)} nm</strong></Tile>
             <Tile><p>AFTER SHRINKAGE</p><strong>{finalThickness.toFixed(1)} nm</strong></Tile>
             <Tile><p>LOCAL RANGE</p><strong>{section.film.minimumThicknessNm.toFixed(1)}–{section.film.maximumThicknessNm.toFixed(1)} nm</strong></Tile>
