@@ -1,9 +1,9 @@
 {
-  "date": "2026-08-06",
+  "date": "2026-08-08",
   "framework": "React 19 + TypeScript + Vite 8",
-  "fontStack": "Arial with monospace readouts",
-  "palette": "Warm neutral CSS properties with one orange accent",
+  "fontStack": "IBM Plex Sans with IBM Plex Mono scientific readouts",
+  "palette": "Low-Cost warm Carbon tokens with a dark scientific viewer",
   "motion": "No motion dependency",
-  "spacing": "Local ad-hoc scale",
-  "designSource": "jorpago2.github.io/docs/interface-contract.md"
+  "spacing": "Named 4 px project scale aligned with Carbon",
+  "designSource": "tokens.css and the shared scientific-tool interface contract"
 }

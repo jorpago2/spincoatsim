@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-08-08",
+    "scope": "design-system cleanup",
+    "macrostructure": "Workbench",
+    "theme": "Low-Cost warm Carbon",
+    "enrichment": "none",
+    "nav": "Carbon workflow rail / bottom actions",
+    "footer": "scientific status strip",
+    "brief": "Remove inherited visual systems and close remaining Carbon token fallbacks"
+  },
+  {
     "date": "2026-08-07",
     "scope": "app palette",
     "macrostructure": "Workbench",

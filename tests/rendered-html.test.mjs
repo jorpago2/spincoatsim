@@ -7,9 +7,12 @@ test("exports the SpinCoatSim application", async () => {
   const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
   const tokens = await readFile(new URL("../tokens.css", import.meta.url), "utf8");
+  const favicon = await readFile(new URL("../public/favicon.svg", import.meta.url), "utf8");
   assert.match(html, /<title>SpinCoatSim/);
   assert.match(html, /favicon\.svg/);
   assert.match(html, /viewport-fit=cover/);
+  assert.match(html, /theme-color" content="#faf4ec"/);
+  assert.doesNotMatch(html, /#f4f4f4/);
   assert.doesNotMatch(html, /fonts\.googleapis\.com/);
   for (const metadata of ["theme-color", "canonical", "og:site_name", "og:url", "og:image:alt", "twitter:title", "twitter:description", "twitter:image:alt"]) {
     assert.match(html, new RegExp(metadata));
@@ -54,4 +57,14 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(tokens, /:root,\s*\.cds--g10\s*\{[\s\S]*--cds-background:\s*var\(--color-paper\)/);
   assert.match(tokens, /--cds-button-primary:\s*var\(--color-accent-strong\)/);
   assert.match(tokens, /--cds-support-success:\s*var\(--color-success\)/);
+  assert.match(tokens, /--cds-layer-selected-inverse:\s*var\(--color-ink\)/);
+  assert.match(tokens, /\.cds--layer-two\s*\{\s*--cds-layer-background:\s*var\(--color-surface\)/);
+  assert.match(source, /var\(--color-plot-film\)/);
+  assert.doesNotMatch(source, /#ff5a1f/);
+  assert.match(favicon, /#75b9c8/);
+  assert.match(favicon, /#f0b84a/);
+  assert.match(favicon, /#eb3f00/);
+  for (const legacyToken of ["font-display", "radius-input", "radius-card", "radius-pill", "shadow-raised", "ease-out", "ease-in", "ease-in-out", "dur-micro", "dur-short", "dur-long", "space-2xl", "space-3xl", "text-2xl", "text-display"]) {
+    assert.doesNotMatch(tokens, new RegExp(`--${legacyToken}:`));
+  }
 });

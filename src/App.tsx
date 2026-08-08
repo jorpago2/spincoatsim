@@ -513,7 +513,7 @@ export default function SpinCoatPage() {
           <div className="spin-legend">
             <span><i style={{ background: "#5c6570" }} />Substrate</span>
             {layers.filter((layer) => layer.mode !== "etch").map((layer) => <span key={layer.id}><i style={{ background: layer.color }} />{layer.name}</span>)}
-            <span><i style={{ background: "#ff5a1f" }} />Spin-coated {metalOxidePreset?.family ?? "film"}</span>
+            <span><i style={{ background: "var(--color-plot-film)" }} />Spin-coated {metalOxidePreset?.family ?? "film"}</span>
           </div>
 
           <Accordion align="start" size="md" className="spin-validity"><AccordionItem title="Model boundary"><p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>{section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}</AccordionItem></Accordion>
