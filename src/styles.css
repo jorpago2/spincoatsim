@@ -5,7 +5,7 @@
 @import "../tokens.css";
 
 :root {
-  --spin-header-height: 4rem;
+  --spin-header-height: var(--scientific-ui-header-block-size);
   --spin-navigation-height: var(--scientific-ui-mobile-nav-block-size);
   --spin-status-height: 3.5rem;
   --spin-rail-width: var(--scientific-ui-rail-inline-size);
