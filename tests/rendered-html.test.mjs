@@ -47,7 +47,7 @@ test("exports the SpinCoatSim application", async () => {
   const carbon = await readFile(new URL("../src/carbon.scss", import.meta.url), "utf8");
   assert.match(carbon, /@use ["']@carbon\/react["']/);
   assert.doesNotMatch(styles, /tailwindcss|@theme inline/);
-  for (const component of ["Grid", "NumberInput", "Select", "ComboBox", "Slider", "Accordion", "FileUploaderButton", "ExportReceipt", "ScientificEmptyState", "ScientificStatusBar"]) {
+  for (const component of ["Grid", "NumberInput", "Select", "ComboBox", "Accordion", "FileUploaderButton", "ExportReceipt", "ScientificEmptyState", "ScientificStatusBar"]) {
     assert.match(source, new RegExp(`<${component}`));
   }
   assert.match(source, /restoreCustomCalibration/);
@@ -55,7 +55,8 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /Reference process comparison/);
   assert.match(source, /provenance: parameterProvenance/);
   assert.match(source, /fileName=\{exportNotice\.fileName\}/);
-  assert.match(source, /<Grid as="main"/);
+  assert.match(source, /<ScientificAppShell/);
+  assert.match(source, /miniPreview=/);
   assert.match(styles, /overflow-x: clip/);
   assert.doesNotMatch(styles, /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|100vw|transition:\s*all/i);
   assert.match(tokens, /--color-accent: oklch\(/);

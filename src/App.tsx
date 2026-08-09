@@ -14,13 +14,12 @@ import {
   NumberInput,
   Select,
   SelectItem,
-  Slider,
   Tag,
   TextInput,
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificEmptyState, ScientificHeader, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -279,10 +278,8 @@ export default function SpinCoatPage() {
       setLastUpdated(new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date()));
       setResultsFresh(true);
     }, 0);
-    const freshnessTimer = window.setTimeout(() => setResultsFresh(false), 900);
     return () => {
       window.clearTimeout(updateTimer);
-      window.clearTimeout(freshnessTimer);
     };
   }, [section]);
 
@@ -505,33 +502,32 @@ export default function SpinCoatPage() {
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
 
   return (
-    <Grid as="main" fullWidth condensed className="spin-app">
-      <Column sm={4} md={8} lg={16} className="spin-app-column">
-      <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
-      <ScientificHeader
-        aria-label="SpinCoatSim"
-        product="SpinCoatSim"
-        productMark="S"
-        descriptor="Spin-coating simulator"
-        href="/spincoatsim/"
-        contextLabel="Current model"
-        context={fileName || "No GDS loaded"}
-        status={{ state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input", label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input" }}
-        secondaryActions={<>
-          <IconButton className="spin-header-example" kind="ghost" size="lg" label="Load example" align="bottom-end" onClick={loadDemo}><Document size={20} /></IconButton>
-          <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
-        </>}
-      />
-      <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
-
-      <ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel ?? "input"} expandedId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} items={[
+    <ScientificAppShell
+      className="spin-app"
+      panelOpen={Boolean(activePanel)}
+      header={<>
+        <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
+        <ScientificHeader
+          aria-label="SpinCoatSim"
+          product="SpinCoatSim"
+          productMark="S"
+          descriptor="Spin-coating simulator"
+          href="/spincoatsim/"
+          contextLabel="Current model"
+          context={fileName || "No GDS loaded"}
+          status={{ state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input", label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input" }}
+          secondaryActions={<>
+            <IconButton className="spin-header-example" kind="ghost" size="lg" label="Load example" align="bottom-end" onClick={loadDemo}><Document size={20} /></IconButton>
+            <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
+          </>}
+        />
+      </>}
+      navigation={<ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel ?? "input"} expandedId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} items={[
         { id: "input", triggerId: "spin-nav-input", label: "Input", icon: <Document size={20} />, controlsId: "spin-tool-panel" },
         { id: "stack", triggerId: "spin-nav-stack", label: "Stack", icon: <Layers size={20} />, controlsId: "spin-tool-panel" },
         { id: "coating", triggerId: "spin-nav-coating", label: "Coating", icon: <Chemistry size={20} />, controlsId: "spin-tool-panel" },
-      ]} />
-
-      <section className="spin-workspace" id="spin-workspace" tabIndex={-1} data-panel-open={Boolean(activePanel)}>
-        {activePanel && <><div className="spin-panel-scrim" aria-hidden="true" /><ScientificTaskPanel
+      ]} />}
+      panel={activePanel ? <ScientificTaskPanel
           className="spin-controls"
           id="spin-tool-panel"
           titleId="spin-panel-title"
@@ -621,7 +617,7 @@ export default function SpinCoatPage() {
               <Column sm={4} md={4} lg={8}><NumberField id="simulated-speed" label="Simulated speed" unit="rpm" value={rpm} min={1} max={100000} provenance={parameterProvenance.rpm} onValue={(value) => setCalibrationValue("rpm", bounded(value, rpm, 1, 100000))} /></Column>
               <Column sm={4} md={4} lg={8}><NumberField id="exponent" label="Exponent n" value={exponent} min={0} max={2} step={0.05} provenance={parameterProvenance.exponent} onValue={(value) => setCalibrationValue("exponent", bounded(value, exponent, 0, 2))} /></Column>
               <Column sm={4} md={4} lg={8}><NumberField id="shrinkage" label="Shrinkage" unit="%" value={shrinkage} min={0} max={95} provenance={parameterProvenance.shrinkagePercent} onValue={(value) => setCalibrationValue("shrinkage", bounded(value, shrinkage, 0, 95))} /></Column>
-              <Column sm={4} md={8} lg={16}><div className="spin-number-field"><Slider id="leveling-strength" className="spin-range" labelText="Leveling strength (%)" min={0} max={100} hideTextInput formatLabel={(value) => `${value}%`} value={levelingStrength} onChange={({ value }) => setLevelingStrength(Number(value))} /><Tag className="spin-provenance-tag" size="sm" type={provenanceTagType[parameterProvenance.levelingStrengthPercent]}>{parameterProvenance.levelingStrengthPercent}</Tag></div></Column>
+              <Column sm={4} md={8} lg={16}><NumberField id="leveling-strength" label="Leveling strength" unit="%" value={levelingStrength} min={0} max={100} step={1} provenance={parameterProvenance.levelingStrengthPercent} onValue={(value) => setLevelingStrength(bounded(value, levelingStrength, 0, 100))} /></Column>
               <Column sm={4} md={8} lg={16}><NumberField id="leveling-length" label="Lateral leveling length" unit="µm" value={levelingLength} min={0} max={1e6} step={0.5} provenance={parameterProvenance.levelingLengthMicrometers} onValue={(value) => setLevelingLength(bounded(value, levelingLength, 0, 1e6))} /></Column>
             </Grid>
             {photoresistPreset && <Tile className="spin-reference" aria-live="polite"><b>{photoresistPreset.name} · {photoresistPreset.tone}</b>{photoresistPreset.exposureWavelengthsNm && <span>Verified exposure lines: {photoresistPreset.exposureWavelengthsNm.join(", ")} nm.</span>}<span>{photoresistPreset.evidence}. Loaded with generic n = 0.5 and 0% additional shrinkage.</span><Link href={photoresistPreset.sourceUrl} target="_blank" rel="noreferrer">Open source ↗</Link></Tile>}
@@ -629,9 +625,26 @@ export default function SpinCoatPage() {
             <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
           </section>}
-        </ScientificTaskPanel></>}
-
-        <section className="spin-preview scientific-stage" aria-label="Coating results">
+        </ScientificTaskPanel> : undefined}
+      miniPreview={section ? <section className="spin-mini-preview" aria-label="Current coating overview">
+        <div className="spin-mini-preview__stack" aria-hidden="true">
+          <i className="spin-mini-preview__film" />
+          {layers.filter((layer) => layer.mode !== "etch").slice().reverse().map((layer) => <i key={layer.id} style={{ background: layer.color }} />)}
+          <i className="spin-mini-preview__substrate" />
+        </div>
+        <div className="spin-mini-preview__summary">
+          <strong>{fileName}</strong>
+          <span>{finalThickness.toFixed(1)} nm coating · {layers.length} process layers</span>
+        </div>
+      </section> : undefined}
+      statusBar={<ScientificStatusBar className="spin-status" status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Coating profile ready" : "Load a GDS file or the example to begin" }} metadata={<dl>
+        <div><dt>Layers</dt><dd>{layers.length}</dd></div>
+        <div><dt>Film</dt><dd>{section ? `${finalThickness.toFixed(1)} nm` : "—"}</dd></div>
+        <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
+      </dl>} />}
+    >
+        <section className="spin-preview scientific-stage" id="spin-workspace" tabIndex={-1} aria-label="Coating results">
+          <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
           <div className="spin-preview-head scientific-stage__header">
             <div><div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>{section && <div className="spin-result-context"><Tag size="sm" type={coatingPreset ? hasReferenceEdits ? "purple" : "teal" : "gray"}>{coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " + edits" : ""}` : "Custom calibration"}</Tag><ScientificStatus className="spin-live-status" status={{ state: resultsFresh ? "up-to-date" : "modified", label: resultsFresh ? "Results update automatically" : "Parameters modified", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }} /></div>}</div>
             {section && <div className="spin-actions"><Button kind="secondary" size="md" onClick={exportPng}>Export PNG</Button><Button kind="secondary" size="md" onClick={exportModel}>Export JSON</Button></div>}
@@ -677,13 +690,6 @@ export default function SpinCoatPage() {
           <Accordion align="start" size="md" className="spin-validity"><AccordionItem title="Model boundary"><p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>{section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}</AccordionItem></Accordion>
           </> : <ScientificEmptyState className="spin-empty-state" title="No coating profile yet" description="Load a GDS file or use the example to calculate and display the cross-section." action={<Button kind="primary" size="md" onClick={loadDemo}>Load example</Button>} />}
         </section>
-      </section>
-      <ScientificStatusBar className="spin-status" status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Coating profile ready" : "Load a GDS file or the example to begin" }} metadata={<dl>
-          <div><dt>Layers</dt><dd>{layers.length}</dd></div>
-          <div><dt>Film</dt><dd>{section ? `${finalThickness.toFixed(1)} nm` : "—"}</dd></div>
-          <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
-        </dl>} />
-      </Column>
-    </Grid>
+    </ScientificAppShell>
   );
 }

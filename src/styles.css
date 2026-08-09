@@ -4,31 +4,12 @@
  */
 @import "../tokens.css";
 
-:root {
-  --spin-header-height: var(--scientific-ui-header-block-size);
-  --spin-navigation-height: var(--scientific-ui-mobile-nav-block-size);
-  --spin-status-height: 3.5rem;
-  --spin-rail-width: var(--scientific-ui-rail-inline-size);
-  --spin-panel-width: var(--scientific-ui-panel-inline-size);
-}
-
 * { box-sizing: border-box; }
 html, body { overflow-x: clip; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
 
-.spin-app { min-height: 100dvh; max-width: none; padding: 0; }
-.spin-app-column {
-  min-width: 0;
-  max-width: none;
-  height: 100dvh;
-  padding: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: var(--spin-header-height) minmax(0, 1fr) var(--spin-status-height) var(--spin-navigation-height);
-  grid-template-areas: "header" "workspace" "status" "navigation";
-  overflow: hidden;
-}
+.spin-app { block-size: 100dvh; min-block-size: 100dvh; overflow: hidden; }
 
 .visually-hidden {
   position: absolute;
@@ -46,6 +27,9 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
   z-index: var(--z-panel);
   inset-block-start: var(--space-xs);
   inset-inline-start: var(--space-xs);
+  min-block-size: var(--scientific-ui-target-size);
+  display: inline-flex;
+  align-items: center;
   padding: var(--space-xs) var(--space-sm);
   transform: translateY(-160%);
   background: var(--cds-background-inverse);
@@ -65,35 +49,10 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
   white-space: nowrap;
 }
 
-.spin-navigation {
-  grid-area: navigation;
-  z-index: var(--z-overlay);
-  background: var(--cds-layer-01);
-}
-.spin-app .spin-navigation { block-size: var(--spin-navigation-height); }
-
-.spin-workspace {
-  grid-area: workspace;
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "result";
-  overflow: hidden;
-  background: var(--color-paper);
-}
-.spin-panel-scrim { display: none; }
 .spin-controls {
-  grid-area: panel;
-  position: fixed;
-  z-index: var(--z-panel);
-  inset: var(--spin-header-height) 0 calc(var(--spin-status-height) + var(--spin-navigation-height));
+  block-size: 100%;
   min-width: 0;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-inline-end: var(--rule-hair) solid var(--cds-border-subtle-01);
 }
 .spin-panel-body { overflow-x: clip; }
 .spin-control-section { min-height: 100%; padding: var(--space-md) var(--space-sm); background: var(--cds-layer-01); }
@@ -121,7 +80,6 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-layer-fields { margin-block-start: var(--space-sm); }
 .spin-add { margin-block-start: 0; }
 
-.spin-range { inline-size: 100%; max-inline-size: 100%; }
 .spin-number-field { min-inline-size: 0; }
 .spin-provenance-tag { margin: var(--space-2xs) 0 0; }
 .spin-reference-picker { display: grid; gap: var(--space-2xs); }
@@ -147,13 +105,11 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-reference a { inline-size: fit-content; }
 .spin-equation { margin-block-start: var(--space-md); padding: var(--space-sm); border-inline-start: .1875rem solid var(--cds-border-interactive); background: var(--cds-layer-accent-01); color: var(--cds-text-secondary); font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
 
-.spin-preview { grid-area: result; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-md) var(--space-sm) var(--space-lg); background: var(--color-paper); }
+.spin-preview { min-width: 0; min-height: 0; block-size: 100%; overflow: auto; padding: var(--space-md) var(--space-sm) var(--space-lg); background: var(--color-paper); }
 .spin-preview-head { display: grid; gap: var(--space-xs); margin-block-end: var(--space-sm); }
 .spin-preview-head h2 { min-width: 0; margin: 0; font-size: var(--text-lg); font-weight: 600; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .spin-result-context { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); margin-block-start: var(--space-2xs); }
 .spin-live-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3xs); margin: 0; color: var(--cds-text-secondary); font-size: var(--text-xs); }
-.spin-live-status > span { inline-size: .5rem; block-size: .5rem; background: var(--cds-support-success); }
-.spin-live-status[data-fresh="true"] > span { outline: .125rem solid var(--cds-focus); outline-offset: .125rem; }
 .spin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs); }
 .spin-export-notice { max-inline-size: none; margin-block-end: var(--space-sm); }
 .spin-canvas { inline-size: 100%; block-size: auto; display: block; aspect-ratio: 1200 / 650; border: var(--rule-hair) solid var(--color-viewer); background: var(--color-plot-background); cursor: crosshair; }
@@ -173,20 +129,28 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-empty-state strong { font-size: var(--text-xl); }
 .spin-empty-state p { max-width: 28rem; margin: var(--space-2xs) 0 var(--space-sm); color: var(--cds-text-secondary); line-height: 1.55; }
 
-.spin-status { grid-area: status; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm); padding-inline: var(--space-xs); border-block-start: var(--rule-hair) solid var(--cds-border-subtle-01); background: var(--cds-layer-01); color: var(--cds-text-secondary); font-size: var(--text-xs); }
-.spin-status > p { min-width: 0; margin: 0; display: flex; align-items: center; gap: var(--space-2xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.spin-status > p > span { inline-size: .5rem; block-size: .5rem; flex: 0 0 auto; background: var(--cds-icon-secondary); }
-.spin-status[data-ready="true"] > p > span { background: var(--cds-support-success); }
 .spin-status dl, .spin-status dl > div { display: flex; align-items: baseline; gap: var(--space-2xs); }
 .spin-status dl { margin: 0; gap: var(--space-sm); }
 .spin-status dt { color: var(--cds-text-secondary); }
 .spin-status dd { margin: 0; color: var(--cds-text-primary); font-family: var(--font-mono); white-space: nowrap; }
 
-@media (max-width: 30rem) {
-  .spin-status { grid-template-columns: minmax(0, 1fr); }
-  .spin-status > p { display: none; }
-  .spin-status dl { justify-content: center; }
+.spin-mini-preview {
+  block-size: 100%;
+  display: grid;
+  grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-block-end: var(--rule-hair) solid var(--cds-border-subtle-01);
+  background: var(--cds-layer-01);
 }
+.spin-mini-preview__stack { align-self: stretch; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; border: var(--rule-hair) solid var(--cds-border-strong-01); background: var(--color-plot-background); }
+.spin-mini-preview__stack i { min-block-size: .4rem; flex: 1 1 auto; }
+.spin-mini-preview__stack .spin-mini-preview__film { flex-grow: 2; background: var(--color-plot-film); }
+.spin-mini-preview__stack .spin-mini-preview__substrate { flex-grow: 3; background: var(--color-neutral); }
+.spin-mini-preview__summary { min-inline-size: 0; display: grid; gap: var(--space-3xs); }
+.spin-mini-preview__summary strong, .spin-mini-preview__summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spin-mini-preview__summary span { color: var(--cds-text-secondary); font-family: var(--font-mono); font-size: var(--text-xs); }
 
 @media (min-width: 42rem) {
   .spin-control-section { padding-inline: var(--space-md); }
@@ -195,18 +159,11 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
   .spin-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@media (min-width: 66rem) {
-  .spin-app-column {
-    grid-template-columns: var(--spin-rail-width) minmax(0, 1fr);
-    grid-template-rows: var(--spin-header-height) minmax(0, 1fr) var(--spin-status-height);
-    grid-template-areas: "header header" "navigation workspace" "navigation status";
+@media (pointer: coarse) {
+  .spin-example,
+  .spin-empty-state button {
+    min-block-size: var(--scientific-ui-target-size);
   }
-  .spin-app .spin-navigation { inline-size: var(--spin-rail-width); block-size: 100%; overflow: visible; }
-  .spin-panel-scrim { position: fixed; z-index: var(--z-overlay); inset: var(--spin-header-height) 0 var(--spin-status-height) var(--spin-rail-width); display: block; background: var(--cds-overlay); }
-  .spin-controls { inset: var(--spin-header-height) auto var(--spin-status-height) var(--spin-rail-width); inline-size: min(var(--spin-panel-width), calc(100% - var(--spin-rail-width))); }
-  .spin-workspace[data-panel-open="true"] { grid-template-columns: var(--spin-panel-width) minmax(0, 1fr); grid-template-areas: "panel result"; }
-  .spin-panel-scrim { display: none; }
-  .spin-controls { position: static; inline-size: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
