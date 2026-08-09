@@ -23,7 +23,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Close, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificEmptyState, ScientificStatus, ScientificStatusBar } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificEmptyState, ScientificStatus, ScientificStatusBar, ScientificToolRail } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -189,8 +189,6 @@ export default function SpinCoatPage() {
     setActivePanel(null);
     requestAnimationFrame(() => document.getElementById(`spin-nav-${panel}`)?.focus());
   };
-
-  const togglePanel = (panel: ToolPanel) => setActivePanel((current) => current === panel ? null : panel);
 
   useEffect(() => {
     if (!activePanel) return;
@@ -523,11 +521,11 @@ export default function SpinCoatPage() {
       </Header>
       <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
 
-      <nav className="spin-navigation" aria-label="Configuration tools">
-        <Button id="spin-nav-input" kind="ghost" size="lg" renderIcon={Document} aria-controls="spin-tool-panel" aria-expanded={activePanel === "input"} className={activePanel === "input" ? "active" : ""} onClick={() => togglePanel("input")}>Input</Button>
-        <Button id="spin-nav-stack" kind="ghost" size="lg" renderIcon={Layers} aria-controls="spin-tool-panel" aria-expanded={activePanel === "stack"} className={activePanel === "stack" ? "active" : ""} onClick={() => togglePanel("stack")}>Stack</Button>
-        <Button id="spin-nav-coating" kind="ghost" size="lg" renderIcon={Chemistry} aria-controls="spin-tool-panel" aria-expanded={activePanel === "coating"} className={activePanel === "coating" ? "active" : ""} onClick={() => togglePanel("coating")}>Coating</Button>
-      </nav>
+      <ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} items={[
+        { id: "input", triggerId: "spin-nav-input", label: "Input", icon: <Document size={20} />, controlsId: "spin-tool-panel" },
+        { id: "stack", triggerId: "spin-nav-stack", label: "Stack", icon: <Layers size={20} />, controlsId: "spin-tool-panel" },
+        { id: "coating", triggerId: "spin-nav-coating", label: "Coating", icon: <Chemistry size={20} />, controlsId: "spin-tool-panel" },
+      ]} />
 
       <section className="spin-workspace" id="spin-workspace" tabIndex={-1} data-panel-open={Boolean(activePanel)}>
         {activePanel && <><div className="spin-panel-scrim" aria-hidden="true" /><Layer as="aside" withBackground className="spin-controls" id="spin-tool-panel" aria-labelledby="spin-panel-title">

@@ -8,8 +8,8 @@
   --spin-header-height: 3rem;
   --spin-navigation-height: 4rem;
   --spin-status-height: 3.5rem;
-  --spin-rail-width: 5rem;
-  --spin-panel-width: 30rem;
+  --spin-rail-width: var(--scientific-ui-rail-compact-inline-size);
+  --spin-panel-width: var(--scientific-ui-panel-inline-size);
 }
 
 * { box-sizing: border-box; }
@@ -95,24 +95,6 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-navigation {
   grid-area: navigation;
   z-index: var(--z-overlay);
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  background: var(--cds-layer-01);
-  border-block-start: var(--rule-hair) solid var(--cds-border-subtle-01);
-}
-.spin-navigation button {
-  inline-size: 100%;
-  min-inline-size: 0;
-  min-block-size: var(--spin-navigation-height);
-  flex-direction: row-reverse;
-  justify-content: center;
-  border-inline-end: var(--rule-hair) solid var(--cds-border-subtle-01);
-}
-.spin-navigation button:last-child { border-inline-end: 0; }
-.spin-navigation button.active {
-  color: var(--cds-text-primary);
-  background: var(--cds-layer-selected-01);
-  box-shadow: inset 0 .1875rem 0 var(--cds-border-interactive);
 }
 
 .spin-workspace {
@@ -252,9 +234,6 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
     grid-template-areas: "header header" "navigation workspace" "navigation status";
   }
   .spin-header-context p { display: block; }
-  .spin-navigation { display: flex; flex-direction: column; border-block-start: 0; border-inline-end: var(--rule-hair) solid var(--cds-border-subtle-01); }
-  .spin-navigation button { inline-size: var(--spin-rail-width); min-block-size: 4.5rem; flex-direction: column-reverse; border-inline-end: 0; border-block-end: var(--rule-hair) solid var(--cds-border-subtle-01); }
-  .spin-navigation button.active { box-shadow: inset .1875rem 0 0 var(--cds-border-interactive); }
   .spin-panel-scrim { position: fixed; z-index: var(--z-overlay); inset: var(--spin-header-height) 0 var(--spin-status-height) var(--spin-rail-width); display: block; background: var(--cds-overlay); }
   .spin-controls { inset: var(--spin-header-height) auto var(--spin-status-height) var(--spin-rail-width); inline-size: min(var(--spin-panel-width), calc(100% - var(--spin-rail-width))); }
   .spin-control-section { padding-inline: var(--space-md); }
@@ -264,6 +243,7 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 }
 
 @media (min-width: 66rem) {
+  :root { --spin-rail-width: var(--scientific-ui-rail-inline-size); }
   .spin-workspace[data-panel-open="true"] { grid-template-columns: var(--spin-panel-width) minmax(0, 1fr); grid-template-areas: "panel result"; }
   .spin-panel-scrim { display: none; }
   .spin-controls { position: static; inline-size: auto; }
