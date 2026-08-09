@@ -511,10 +511,10 @@ export default function SpinCoatPage() {
     <Grid as="main" fullWidth condensed className="spin-app">
       <Column sm={4} md={8} lg={16} className="spin-app-column">
       <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
-      <Header className="topbar" aria-label="SpinCoatSim">
+      <Header className="topbar scientific-app-header" aria-label="SpinCoatSim">
         <HeaderName className="brand" prefix="" href="/spincoatsim/">
           <span className="brand-inner">
-            <span className="brand-mark" aria-hidden="true">S</span>
+            <span className="brand-mark scientific-app-header__brand-mark" aria-hidden="true">S</span>
             <span className="brand-copy"><strong>SpinCoatSim</strong><small>Spin-coating simulator</small></span>
           </span>
         </HeaderName>
@@ -532,7 +532,7 @@ export default function SpinCoatPage() {
       </Header>
       <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
 
-      <ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} items={[
+      <ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel ?? "input"} expandedId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} items={[
         { id: "input", triggerId: "spin-nav-input", label: "Input", icon: <Document size={20} />, controlsId: "spin-tool-panel" },
         { id: "stack", triggerId: "spin-nav-stack", label: "Stack", icon: <Layers size={20} />, controlsId: "spin-tool-panel" },
         { id: "coating", triggerId: "spin-nav-coating", label: "Coating", icon: <Chemistry size={20} />, controlsId: "spin-tool-panel" },

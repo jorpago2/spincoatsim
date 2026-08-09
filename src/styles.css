@@ -6,9 +6,9 @@
 
 :root {
   --spin-header-height: 4rem;
-  --spin-navigation-height: 3.5rem;
+  --spin-navigation-height: var(--scientific-ui-mobile-nav-block-size);
   --spin-status-height: 3.5rem;
-  --spin-rail-width: 10rem;
+  --spin-rail-width: var(--scientific-ui-rail-inline-size);
   --spin-panel-width: var(--scientific-ui-panel-inline-size);
 }
 
@@ -137,50 +137,6 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
   background: var(--cds-layer-01);
 }
 .spin-app .spin-navigation { block-size: var(--spin-navigation-height); }
-.spin-navigation .scientific-tool-rail__item {
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3xs);
-  min-block-size: 2.75rem;
-  padding: var(--space-3xs) var(--space-2xs);
-  border-block-start-width: .125rem;
-  color: var(--cds-text-secondary);
-  text-align: center;
-}
-.spin-navigation .scientific-tool-rail__item:hover {
-  color: var(--cds-text-primary);
-  background: var(--cds-layer-hover-01);
-}
-.spin-navigation .scientific-tool-rail__item:focus-visible {
-  outline: .125rem solid var(--cds-focus);
-  outline-offset: -.125rem;
-}
-.spin-navigation .scientific-tool-rail__item:active {
-  transform: none;
-  background: var(--cds-layer-active-01);
-}
-.spin-navigation .scientific-tool-rail__item.is-active,
-.spin-navigation .scientific-tool-rail__item[aria-expanded="true"] {
-  color: var(--cds-icon-primary);
-  background: var(--cds-layer-selected-01);
-}
-.spin-navigation .scientific-tool-rail__item:disabled {
-  color: var(--cds-text-disabled);
-  background: transparent;
-  opacity: 1;
-}
-.spin-navigation .scientific-tool-rail__item[data-state="loading"] .scientific-tool-rail__state {
-  color: var(--cds-support-info);
-}
-.spin-navigation .scientific-tool-rail__item[data-state="error"] .scientific-tool-rail__state {
-  color: var(--cds-support-error);
-}
-.spin-navigation .scientific-tool-rail__item[data-state="success"] .scientific-tool-rail__state {
-  color: var(--cds-support-success);
-}
-.spin-navigation .scientific-tool-rail__label {
-  font-weight: 400;
-}
 
 .spin-workspace {
   grid-area: workspace;
@@ -341,59 +297,6 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
     grid-template-areas: "header header" "navigation workspace" "navigation status";
   }
   .spin-app .spin-navigation { inline-size: var(--spin-rail-width); block-size: 100%; overflow: visible; }
-  .spin-navigation ul { gap: var(--space-3xs); padding-block: var(--space-2xs); }
-  .spin-navigation li {
-    inline-size: 100%;
-    block-size: 3rem;
-    display: grid;
-    place-items: stretch;
-  }
-  .spin-navigation .scientific-tool-rail__item {
-    position: relative;
-    inline-size: 100%;
-    block-size: 3rem;
-    min-block-size: 3rem;
-    margin: 0;
-    display: grid;
-    grid-template-columns: 1.25rem 5rem;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-xs);
-    padding-inline: var(--space-sm);
-    border: 0;
-    text-align: start;
-  }
-  .spin-navigation .scientific-tool-rail__item::before {
-    content: "";
-    position: absolute;
-    inset-block: var(--space-2xs);
-    inset-inline-start: 0;
-    inline-size: .125rem;
-    background: transparent;
-  }
-  .spin-navigation .scientific-tool-rail__item.is-active::before,
-  .spin-navigation .scientific-tool-rail__item[aria-expanded="true"]::before {
-    background: var(--cds-border-interactive);
-  }
-  .spin-navigation .scientific-tool-rail__label {
-    position: static;
-    inline-size: auto;
-    max-inline-size: none;
-    block-size: auto;
-    padding: 0;
-    overflow: hidden;
-    clip: auto;
-    clip-path: none;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    line-height: 1;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    transition: none;
-    pointer-events: auto;
-  }
   .spin-panel-scrim { position: fixed; z-index: var(--z-overlay); inset: var(--spin-header-height) 0 var(--spin-status-height) var(--spin-rail-width); display: block; background: var(--cds-overlay); }
   .spin-controls { inset: var(--spin-header-height) auto var(--spin-status-height) var(--spin-rail-width); inline-size: min(var(--spin-panel-width), calc(100% - var(--spin-rail-width))); }
   .spin-workspace[data-panel-open="true"] { grid-template-columns: var(--spin-panel-width) minmax(0, 1fr); grid-template-areas: "panel result"; }
