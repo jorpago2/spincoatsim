@@ -251,7 +251,7 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-validity p { color: var(--cds-text-secondary); font-size: var(--text-sm); line-height: 1.55; }
 .spin-validity .spin-warning { padding: var(--space-xs); border-inline-start: .1875rem solid var(--cds-support-warning); background: var(--cds-notification-background-warning); color: var(--cds-text-primary); font-weight: 600; }
 
-.spin-empty-state { min-block-size: 55dvh; display: grid; place-content: center; justify-items: center; padding: var(--space-lg); text-align: center; }
+.spin-empty-state { inline-size: 100%; min-block-size: 55dvh; margin-inline: auto; display: grid; place-content: center; justify-items: center; padding: var(--space-lg); text-align: center; }
 .spin-empty-state strong { font-size: var(--text-xl); }
 .spin-empty-state p { max-width: 28rem; margin: var(--space-2xs) 0 var(--space-sm); color: var(--cds-text-secondary); line-height: 1.55; }
 
