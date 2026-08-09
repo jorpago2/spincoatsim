@@ -513,11 +513,22 @@ export default function SpinCoatPage() {
       <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
       <Header className="topbar" aria-label="SpinCoatSim">
         <HeaderName className="brand" prefix="" href="/spincoatsim/">
-          <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-          SPINCOAT<span>SIM</span>
+          <span className="brand-inner">
+            <span className="brand-mark" aria-hidden="true">S</span>
+            <span className="brand-copy"><strong>SpinCoatSim</strong><small>Spin-coating simulator</small></span>
+          </span>
         </HeaderName>
-        <div className="spin-header-context" aria-label="Current model"><p>{fileName || "No GDS loaded"}</p></div>
-        <div className="spin-header-actions"><Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link></div>
+        <div className="spin-header-context" aria-label="Current model">
+          <div className="spin-header-model"><span>Current model</span><strong>{fileName || "No GDS loaded"}</strong></div>
+          <ScientificStatus className="spin-header-status" status={{
+            state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input",
+            label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input",
+          }} />
+        </div>
+        <div className="spin-header-actions" aria-label="Application actions">
+          <IconButton className="spin-header-example" kind="ghost" size="lg" label="Load example" align="bottom-end" onClick={loadDemo}><Document size={20} /></IconButton>
+          <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
+        </div>
       </Header>
       <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
 
