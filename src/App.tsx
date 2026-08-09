@@ -9,8 +9,6 @@ import {
   ComboBox,
   FileUploaderButton,
   Grid,
-  Header,
-  HeaderName,
   IconButton,
   Layer,
   Link,
@@ -23,7 +21,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Close, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificEmptyState, ScientificStatus, ScientificStatusBar, ScientificToolRail } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificEmptyState, ScientificHeader, ScientificStatus, ScientificStatusBar, ScientificToolRail } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -511,25 +509,20 @@ export default function SpinCoatPage() {
     <Grid as="main" fullWidth condensed className="spin-app">
       <Column sm={4} md={8} lg={16} className="spin-app-column">
       <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
-      <Header className="topbar scientific-app-header" aria-label="SpinCoatSim">
-        <HeaderName className="brand" prefix="" href="/spincoatsim/">
-          <span className="brand-inner">
-            <span className="brand-mark scientific-app-header__brand-mark" aria-hidden="true">S</span>
-            <span className="brand-copy"><strong>SpinCoatSim</strong><small>Spin-coating simulator</small></span>
-          </span>
-        </HeaderName>
-        <div className="spin-header-context" aria-label="Current model">
-          <div className="spin-header-model"><span>Current model</span><strong>{fileName || "No GDS loaded"}</strong></div>
-          <ScientificStatus className="spin-header-status" status={{
-            state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input",
-            label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input",
-          }} />
-        </div>
-        <div className="spin-header-actions" aria-label="Application actions">
+      <ScientificHeader
+        aria-label="SpinCoatSim"
+        product="SpinCoatSim"
+        productMark="S"
+        descriptor="Spin-coating simulator"
+        href="/spincoatsim/"
+        contextLabel="Current model"
+        context={fileName || "No GDS loaded"}
+        status={{ state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input", label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input" }}
+        secondaryActions={<>
           <IconButton className="spin-header-example" kind="ghost" size="lg" label="Load example" align="bottom-end" onClick={loadDemo}><Document size={20} /></IconButton>
           <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
-        </div>
-      </Header>
+        </>}
+      />
       <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
 
       <ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel ?? "input"} expandedId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} items={[

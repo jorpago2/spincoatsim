@@ -8,6 +8,7 @@ import App from "./App";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing #root element");
+document.documentElement.classList.add("cds--g10");
 
 const app = <StrictMode><GlobalTheme theme="g10"><App /></GlobalTheme></StrictMode>;
 if (root.childElementCount) hydrateRoot(root, app);

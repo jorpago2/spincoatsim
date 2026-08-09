@@ -61,11 +61,7 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(tokens, /--color-accent: oklch\(/);
   assert.match(tokens, /--color-plot-background:\s*var\(--color-viewer-deep\)/);
   assert.match(tokens, /--color-plot-cursor:\s*var\(--color-viewer-grid\)/);
-  assert.match(tokens, /:root,\s*\.cds--g10\s*\{[\s\S]*--cds-background:\s*var\(--color-paper\)/);
-  assert.match(tokens, /--cds-button-primary:\s*var\(--color-accent-strong\)/);
-  assert.match(tokens, /--cds-support-success:\s*var\(--color-success\)/);
-  assert.match(tokens, /--cds-layer-selected-inverse:\s*var\(--color-ink\)/);
-  assert.match(tokens, /\.cds--layer-two\s*\{\s*--cds-layer-background:\s*var\(--color-surface\)/);
+  assert.doesNotMatch(tokens, /--cds-background\s*:/);
   assert.match(source, /var\(--color-plot-film\)/);
   assert.doesNotMatch(source, /#ff5a1f/);
   assert.match(favicon, /#75b9c8/);
