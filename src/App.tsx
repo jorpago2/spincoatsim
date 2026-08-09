@@ -12,7 +12,6 @@ import {
   Header,
   HeaderName,
   IconButton,
-  InlineNotification,
   Layer,
   Link,
   NumberInput,
@@ -24,6 +23,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Close, Document, Layers, TrashCan } from "@carbon/react/icons";
+import { ExportReceipt, ScientificEmptyState, ScientificStatus, ScientificStatusBar } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -628,10 +628,10 @@ export default function SpinCoatPage() {
 
         <section className="spin-preview" aria-label="Coating results">
           <div className="spin-preview-head">
-            <div><div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>{section && <div className="spin-result-context"><Tag size="sm" type={coatingPreset ? hasReferenceEdits ? "purple" : "teal" : "gray"}>{coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " + edits" : ""}` : "Custom calibration"}</Tag><p className="spin-live-status" data-fresh={resultsFresh} role="status" aria-live="polite"><span aria-hidden="true" />Results update automatically{lastUpdated && <time dateTime={lastUpdated}> · Updated {lastUpdated}</time>}</p></div>}</div>
+            <div><div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>{section && <div className="spin-result-context"><Tag size="sm" type={coatingPreset ? hasReferenceEdits ? "purple" : "teal" : "gray"}>{coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " + edits" : ""}` : "Custom calibration"}</Tag><ScientificStatus className="spin-live-status" status={{ state: resultsFresh ? "up-to-date" : "modified", label: resultsFresh ? "Results update automatically" : "Parameters modified", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }} /></div>}</div>
             {section && <div className="spin-actions"><Button kind="secondary" size="md" onClick={exportPng}>Export PNG</Button><Button kind="secondary" size="md" onClick={exportModel}>Export JSON</Button></div>}
           </div>
-          {exportNotice && <InlineNotification className="spin-export-notice" kind="success" lowContrast role="status" title="Export ready" subtitle={`${exportNotice.fileName} · ${exportNotice.context}`} onClose={() => setExportNotice(null)} />}
+          {exportNotice && <ExportReceipt className="spin-export-notice" fileName={exportNotice.fileName} format={exportNotice.fileName.endsWith(".png") ? "PNG" : "JSON"} destination={exportNotice.context} onDismiss={() => setExportNotice(null)} />}
           {section ? <>
           <canvas
             ref={canvas}
@@ -670,17 +670,14 @@ export default function SpinCoatPage() {
           </div>
 
           <Accordion align="start" size="md" className="spin-validity"><AccordionItem title="Model boundary"><p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>{section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}</AccordionItem></Accordion>
-          </> : <div className="spin-empty-state"><strong>No coating profile yet</strong><p>Load a GDS file or use the example to calculate and display the cross-section.</p><Button kind="primary" size="md" onClick={loadDemo}>Load example</Button></div>}
+          </> : <ScientificEmptyState className="spin-empty-state" title="No coating profile yet" description="Load a GDS file or use the example to calculate and display the cross-section." action={<Button kind="primary" size="md" onClick={loadDemo}>Load example</Button>} />}
         </section>
       </section>
-      <footer className="spin-status" data-ready={Boolean(section)} aria-label="Simulation status">
-        <p><span aria-hidden="true" />{section ? "Coating profile ready" : "Load a GDS file or the example to begin"}</p>
-        <dl>
+      <ScientificStatusBar className="spin-status" status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Coating profile ready" : "Load a GDS file or the example to begin" }} metadata={<dl>
           <div><dt>Layers</dt><dd>{layers.length}</dd></div>
           <div><dt>Film</dt><dd>{section ? `${finalThickness.toFixed(1)} nm` : "—"}</dd></div>
           <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
-        </dl>
-      </footer>
+        </dl>} />
       </Column>
     </Grid>
   );

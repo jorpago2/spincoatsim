@@ -1,22 +1,22 @@
-/* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: Low-Cost warm Carbon · designed-as-app */
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: Carbon g10 · designed-as-app */
 :root {
-  --color-paper: oklch(97% 0.012 75);
-  --color-paper-2: oklch(94% 0.014 75);
-  --color-paper-3: oklch(91% 0.016 75);
-  --color-surface: oklch(98.5% 0.009 75);
-  --color-surface-raised: oklch(99% 0.007 75);
-  --color-ink: oklch(17% 0.012 62);
-  --color-ink-2: oklch(27% 0.012 65);
-  --color-muted: oklch(45% 0.014 68);
-  --color-neutral: oklch(35% 0.014 68);
-  --color-rule: oklch(85% 0.014 75);
-  --color-rule-2: oklch(70% 0.018 72);
-  --color-accent: oklch(62% 0.22 39);
-  --color-accent-strong: oklch(51% 0.19 36);
-  --color-accent-active: oklch(44% 0.16 36);
-  --color-accent-soft: oklch(95% 0.035 48);
-  --color-accent-soft-hover: oklch(91% 0.055 48);
-  --color-accent-ink: oklch(98% 0.01 75);
+  --color-paper: oklch(96.4% 0 0);
+  --color-paper-2: oklch(93.5% 0 0);
+  --color-paper-3: oklch(82% 0 0);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-raised: oklch(100% 0 0);
+  --color-ink: oklch(20% 0 0);
+  --color-ink-2: oklch(31% 0 0);
+  --color-muted: oklch(43% 0 0);
+  --color-neutral: oklch(35% 0 0);
+  --color-rule: oklch(82% 0 0);
+  --color-rule-2: oklch(66% 0 0);
+  --color-accent: oklch(62% 0.245 263);
+  --color-accent-strong: oklch(55% 0.245 263);
+  --color-accent-active: oklch(47% 0.22 265);
+  --color-accent-soft: oklch(91% 0.06 258);
+  --color-accent-soft-hover: oklch(87% 0.08 258);
+  --color-accent-ink: oklch(100% 0 0);
   --color-focus: oklch(45% 0.17 245);
   --color-success: oklch(55% 0.14 145);
   --color-success-soft: oklch(95% 0.035 145);
@@ -60,7 +60,7 @@
   --z-panel: 101;
 }
 
-/* Carbon remains the component contract; Low-Cost-GDS supplies its palette. */
+/* Carbon remains the component and semantic-color contract. */
 :root,
 .cds--g10 {
   --cds-background: var(--color-paper);
