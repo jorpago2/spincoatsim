@@ -10,7 +10,6 @@ import {
   FileUploaderButton,
   Grid,
   IconButton,
-  Layer,
   Link,
   NumberInput,
   Select,
@@ -20,8 +19,8 @@ import {
   TextInput,
   Tile,
 } from "@carbon/react";
-import { Add, Chemistry, Close, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificEmptyState, ScientificHeader, ScientificStatus, ScientificStatusBar, ScientificToolRail } from "@jorpago2/scientific-ui";
+import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
+import { ExportReceipt, ScientificEmptyState, ScientificHeader, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -532,12 +531,17 @@ export default function SpinCoatPage() {
       ]} />
 
       <section className="spin-workspace" id="spin-workspace" tabIndex={-1} data-panel-open={Boolean(activePanel)}>
-        {activePanel && <><div className="spin-panel-scrim" aria-hidden="true" /><Layer as="aside" withBackground className="spin-controls" id="spin-tool-panel" aria-labelledby="spin-panel-title">
-          <div className="spin-panel-head">
-            <div><p>Configuration</p><h2 id="spin-panel-title">{activePanel === "input" ? "GDS section" : activePanel === "stack" ? "Existing materials" : "Calibrated film"}</h2></div>
-            <IconButton className="spin-panel-close" kind="ghost" size="lg" label="Close configuration panel" onClick={closePanel}><Close size={20} /></IconButton>
-          </div>
-          <div className={`spin-panel-body${activePanel === "stack" ? " spin-panel-body--stack" : ""}`} key={activePanel}>
+        {activePanel && <><div className="spin-panel-scrim" aria-hidden="true" /><ScientificTaskPanel
+          className="spin-controls"
+          id="spin-tool-panel"
+          titleId="spin-panel-title"
+          title={activePanel === "input" ? "GDS section" : activePanel === "stack" ? "Existing materials" : "Calibrated film"}
+          eyebrow="Configuration"
+          closeLabel="Close"
+          onClose={closePanel}
+          bodyClassName={`spin-panel-body${activePanel === "stack" ? " spin-panel-body--stack" : ""}`}
+          key={activePanel}
+        >
           {activePanel === "input" && <section className="spin-control-section">
             <Tile className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</Tile>
             <FileUploaderButton id="spin-gds-upload" className="spin-upload" accept={[".gds", ".gdsii"]} buttonKind="tertiary" size="md" labelText="Choose a local .gds file" onChange={loadGds} />
@@ -625,11 +629,10 @@ export default function SpinCoatPage() {
             <p className="spin-equation">h = {referenceThickness} · ({rpm}/{referenceRpm})<sup>−{exponent}</sup> · (1 − {shrinkage}/100)</p>
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
           </section>}
-          </div>
-        </Layer></>}
+        </ScientificTaskPanel></>}
 
-        <section className="spin-preview" aria-label="Coating results">
-          <div className="spin-preview-head">
+        <section className="spin-preview scientific-stage" aria-label="Coating results">
+          <div className="spin-preview-head scientific-stage__header">
             <div><div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>{section && <div className="spin-result-context"><Tag size="sm" type={coatingPreset ? hasReferenceEdits ? "purple" : "teal" : "gray"}>{coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " + edits" : ""}` : "Custom calibration"}</Tag><ScientificStatus className="spin-live-status" status={{ state: resultsFresh ? "up-to-date" : "modified", label: resultsFresh ? "Results update automatically" : "Parameters modified", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }} /></div>}</div>
             {section && <div className="spin-actions"><Button kind="secondary" size="md" onClick={exportPng}>Export PNG</Button><Button kind="secondary" size="md" onClick={exportModel}>Export JSON</Button></div>}
           </div>
