@@ -596,18 +596,19 @@ export default function SpinCoatPage() {
                 />
                 {selectedReference && <Button className="spin-custom-action" kind="ghost" size="sm" onClick={restoreCustomCalibration}>Restore custom calibration</Button>}
                 <Accordion align="start" size="sm" className="spin-reference-compare">
-                  <AccordionItem title={`Compare ${comparisonReferences.length} reference processes`}>
-                    <div className="spin-reference-table-wrap">
-                      <table className="spin-reference-table">
-                        <caption className="visually-hidden">Reference process comparison</caption>
-                        <thead><tr><th scope="col">Reference</th><th scope="col">Film</th><th scope="col">Speed</th><th scope="col">Action</th></tr></thead>
-                        <tbody>{comparisonReferences.map((reference) => <tr key={reference.id}>
-                          <th scope="row"><span>{reference.name}</span><small>{reference.detail}</small><Link href={reference.sourceUrl} target="_blank" rel="noreferrer">Source ↗</Link></th>
-                          <td>{reference.referenceThicknessNm} nm</td>
-                          <td>{reference.referenceRpm} rpm</td>
-                          <td><Button kind="ghost" size="sm" disabled={selectedReference?.id === reference.id} onClick={() => applyCoatingReference(reference)}>{selectedReference?.id === reference.id ? "Using" : "Use"}</Button></td>
-                        </tr>)}</tbody>
-                      </table>
+                  <AccordionItem title={`Compare ${comparisonReferences.length} recipes`}>
+                    <div className="spin-reference-list" aria-label="Reference process comparison">
+                      {comparisonReferences.map((reference) => <article className="spin-reference-option" key={reference.id}>
+                        <div className="spin-reference-option__heading">
+                          <div><strong>{reference.name}</strong><small>{reference.detail}</small></div>
+                          <Button kind="ghost" size="sm" disabled={selectedReference?.id === reference.id} onClick={() => applyCoatingReference(reference)}>{selectedReference?.id === reference.id ? "Using" : "Use"}</Button>
+                        </div>
+                        <dl>
+                          <div><dt>Film</dt><dd>{reference.referenceThicknessNm} nm</dd></div>
+                          <div><dt>Speed</dt><dd>{reference.referenceRpm} rpm</dd></div>
+                        </dl>
+                        <Link href={reference.sourceUrl} target="_blank" rel="noreferrer">Source ↗</Link>
+                      </article>)}
                     </div>
                   </AccordionItem>
                 </Accordion>

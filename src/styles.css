@@ -81,21 +81,16 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-reference-picker { display: grid; gap: var(--space-2xs); }
 .spin-custom-action { inline-size: fit-content; }
 .spin-reference-compare { margin-block-start: var(--space-2xs); border-block-start: var(--rule-hair) solid var(--cds-border-subtle-01); }
-.spin-reference-table-wrap { overflow-x: auto; }
-.spin-reference-table { inline-size: 100%; border-collapse: collapse; table-layout: fixed; color: var(--cds-text-primary); font-size: var(--text-xs); }
-.spin-reference-table th, .spin-reference-table td { padding: var(--space-xs) var(--space-2xs); border-block-end: var(--rule-hair) solid var(--cds-border-subtle-01); text-align: start; vertical-align: top; }
-.spin-reference-table thead th { color: var(--cds-text-secondary); font-weight: 600; }
-.spin-reference-table thead th:first-child { inline-size: 42%; }
-.spin-reference-table thead th:nth-child(2) { inline-size: 17%; white-space: nowrap; }
-.spin-reference-table thead th:nth-child(3) { inline-size: 22%; white-space: nowrap; }
-.spin-reference-table thead th:last-child { inline-size: 19%; white-space: nowrap; }
-.spin-reference-table tbody th span, .spin-reference-table tbody th small { display: block; }
-.spin-reference-table tbody th { overflow-wrap: anywhere; }
-.spin-reference-table tbody th small { margin-block-start: var(--space-3xs); color: var(--cds-text-secondary); font-weight: 400; line-height: 1.35; }
-.spin-reference-table tbody th a { display: inline-block; margin-block-start: var(--space-2xs); font-weight: 400; }
-.spin-reference-table td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.spin-reference-table td:last-child { padding: 0; font-family: var(--font-body); }
-.spin-reference-table td:last-child button { inline-size: 100%; min-inline-size: 0; padding-inline: var(--space-xs); }
+.spin-reference-list { display: grid; gap: var(--rule-hair); background: var(--cds-border-subtle-01); }
+.spin-reference-option { min-inline-size: 0; padding: var(--space-xs); background: var(--cds-layer-01); font-size: var(--text-xs); }
+.spin-reference-option__heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-xs); }
+.spin-reference-option__heading strong,
+.spin-reference-option__heading small { display: block; overflow-wrap: anywhere; }
+.spin-reference-option__heading small { margin-block-start: var(--space-3xs); color: var(--cds-text-secondary); line-height: 1.35; }
+.spin-reference-option dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); margin: var(--space-xs) 0; }
+.spin-reference-option dl > div { min-inline-size: 0; }
+.spin-reference-option dt { color: var(--cds-text-secondary); }
+.spin-reference-option dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .spin-reference { margin-block-start: var(--space-md); display: grid; gap: var(--space-3xs); font-size: var(--text-xs); line-height: 1.5; }
 .spin-reference span { color: var(--cds-text-secondary); }
 .spin-reference a { inline-size: fit-content; }
