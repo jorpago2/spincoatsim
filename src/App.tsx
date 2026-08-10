@@ -19,7 +19,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -517,7 +517,7 @@ export default function SpinCoatPage() {
           context={fileName || "No GDS loaded"}
           status={{ state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input", label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input" }}
           secondaryActions={<>
-            <IconButton className="spin-header-example" kind="ghost" size="lg" label="Load example from header" align="bottom-end" onClick={loadDemo}><Document size={20} /></IconButton>
+            <ScientificHeaderAction className="spin-header-example" label="Load example from header" onClick={loadDemo}><Document size={20} aria-hidden={true} /></ScientificHeaderAction>
             <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
           </>}
         />
@@ -637,7 +637,7 @@ export default function SpinCoatPage() {
           <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
           <div className="spin-preview-head scientific-stage__header">
             <div><div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>{section && <div className="spin-result-context"><Tag size="sm" type={coatingPreset ? hasReferenceEdits ? "purple" : "teal" : "gray"}>{coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " + edits" : ""}` : "Custom calibration"}</Tag><ScientificStatus className="spin-live-status" status={{ state: resultsFresh ? "up-to-date" : "modified", label: resultsFresh ? "Results update automatically" : "Parameters modified", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }} /></div>}</div>
-            {section && <div className="spin-actions"><Button kind="secondary" size="md" onClick={exportPng}>Export PNG</Button><Button kind="secondary" size="md" onClick={exportModel}>Export JSON</Button></div>}
+            {section && <div className="spin-actions scientific-stage__actions"><Button kind="secondary" size="md" onClick={exportPng}>Export PNG</Button><Button kind="secondary" size="md" onClick={exportModel}>Export JSON</Button></div>}
           </div>
           {exportNotice && <ExportReceipt className="spin-export-notice" fileName={exportNotice.fileName} format={exportNotice.fileName.endsWith(".png") ? "PNG" : "JSON"} destination={exportNotice.context} onDismiss={() => setExportNotice(null)} />}
           {section ? <>
