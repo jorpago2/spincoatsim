@@ -56,7 +56,7 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /provenance: parameterProvenance/);
   assert.match(source, /fileName=\{exportNotice\.fileName\}/);
   assert.match(source, /<ScientificAppShell/);
-  assert.match(source, /miniPreview=/);
+  assert.doesNotMatch(source, /miniPreview|mini-preview/);
   assert.match(styles, /overflow-x: clip/);
   assert.doesNotMatch(styles, /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|100vw|transition:\s*all/i);
   assert.match(tokens, /--color-accent: oklch\(/);

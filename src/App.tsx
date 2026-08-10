@@ -626,17 +626,6 @@ export default function SpinCoatPage() {
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
           </section>}
         </ScientificTaskPanel> : undefined}
-      miniPreview={section ? <section className="spin-mini-preview" aria-label="Current coating overview">
-        <div className="spin-mini-preview__stack" aria-hidden="true">
-          <i className="spin-mini-preview__film" />
-          {layers.filter((layer) => layer.mode !== "etch").slice().reverse().map((layer) => <i key={layer.id} style={{ background: layer.color }} />)}
-          <i className="spin-mini-preview__substrate" />
-        </div>
-        <div className="spin-mini-preview__summary">
-          <strong>{fileName}</strong>
-          <span>{finalThickness.toFixed(1)} nm coating · {layers.length} process layers</span>
-        </div>
-      </section> : undefined}
       statusBar={<ScientificStatusBar className="spin-status" status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Coating profile ready" : "Load a GDS file or the example to begin" }} metadata={<dl>
         <div><dt>Layers</dt><dd>{layers.length}</dd></div>
         <div><dt>Film</dt><dd>{section ? `${finalThickness.toFixed(1)} nm` : "—"}</dd></div>
