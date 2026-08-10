@@ -54,10 +54,7 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
   min-width: 0;
   min-height: 0;
 }
-.spin-panel-body { overflow-x: clip; }
-.spin-control-section { min-height: 100%; padding: var(--space-md) var(--space-sm); background: var(--cds-layer-01); }
-.spin-panel-body--stack { overflow: hidden; }
-.spin-panel-body--stack .spin-control-section { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--space-xs); }
+.spin-control-section { min-width: 0; }
 
 .spin-file-status { margin-block-end: var(--space-xs); color: var(--cds-text-secondary); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .spin-upload, .spin-example, .spin-add { inline-size: 100%; }
@@ -72,7 +69,6 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-hero-flow span { padding-inline: var(--space-2xs); color: var(--cds-link-primary); }
 
 .spin-layer-list { display: grid; grid-auto-rows: max-content; align-content: start; gap: var(--space-xs); margin-block-start: var(--space-md); }
-.spin-panel-body--stack .spin-layer-list { min-height: 0; margin-block-start: 0; overflow-y: auto; }
 .spin-layer { padding: var(--space-sm); }
 .spin-layer-head { display: grid; grid-template-columns: .75rem 1.25rem minmax(0, 1fr) 2rem; gap: var(--space-2xs); align-items: center; }
 .spin-layer-head i, .spin-legend i { inline-size: .75rem; block-size: .75rem; border: var(--rule-hair) solid var(--cds-border-strong-01); }
@@ -153,7 +149,6 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-mini-preview__summary span { color: var(--cds-text-secondary); font-family: var(--font-mono); font-size: var(--text-xs); }
 
 @media (min-width: 42rem) {
-  .spin-control-section { padding-inline: var(--space-md); }
   .spin-preview { padding-inline: clamp(1.5rem, 3vw, 3rem); padding-block-end: var(--space-xl); }
   .spin-preview-head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
   .spin-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }

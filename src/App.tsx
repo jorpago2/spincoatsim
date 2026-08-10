@@ -535,7 +535,7 @@ export default function SpinCoatPage() {
           eyebrow="Configuration"
           closeLabel="Close"
           onClose={closePanel}
-          bodyClassName={`spin-panel-body${activePanel === "stack" ? " spin-panel-body--stack" : ""}`}
+          bodyClassName="spin-panel-body"
           key={activePanel}
         >
           {activePanel === "input" && <section className="spin-control-section">
