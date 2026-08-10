@@ -517,7 +517,7 @@ export default function SpinCoatPage() {
           context={fileName || "No GDS loaded"}
           status={{ state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input", label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input" }}
           secondaryActions={<>
-            <IconButton className="spin-header-example" kind="ghost" size="lg" label="Load example" align="bottom-end" onClick={loadDemo}><Document size={20} /></IconButton>
+            <IconButton className="spin-header-example" kind="ghost" size="lg" label="Load example from header" align="bottom-end" onClick={loadDemo}><Document size={20} /></IconButton>
             <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
           </>}
         />
@@ -541,7 +541,7 @@ export default function SpinCoatPage() {
           {activePanel === "input" && <section className="spin-control-section">
             <Tile className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</Tile>
             <FileUploaderButton id="spin-gds-upload" className="spin-upload" accept={[".gds", ".gdsii"]} buttonKind="tertiary" size="md" labelText="Choose a local .gds file" onChange={loadGds} />
-            <Button className="spin-example" kind="secondary" size="md" onClick={loadDemo}>Load example</Button>
+            <Button className="spin-example" kind="secondary" size="md" aria-label="Load example from Input panel" onClick={loadDemo}>Load example</Button>
             {error && <p className="spin-error" role="alert">{error}</p>}
             <Grid condensed className="spin-fields">
               <Column sm={4} md={4} lg={8}><NumberField id="section-y" label="Section Y" unit="µm" value={sliceY} min={-1e6} max={1e6} step={0.1} onValue={setSliceY} /></Column>
@@ -677,7 +677,7 @@ export default function SpinCoatPage() {
           </div>
 
           <Accordion align="start" size="md" className="spin-validity"><AccordionItem title="Model boundary"><p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>{section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}</AccordionItem></Accordion>
-          </> : <ScientificEmptyState className="spin-empty-state" title="No coating profile yet" description="Load a GDS file or use the example to calculate and display the cross-section." action={<Button kind="primary" size="md" onClick={loadDemo}>Load example</Button>} />}
+          </> : <ScientificEmptyState className="spin-empty-state" title="No coating profile yet" description="Load a GDS file or use the example to calculate and display the cross-section." action={<Button kind="primary" size="md" aria-label="Load example from empty results" onClick={loadDemo}>Load example</Button>} />}
         </section>
     </ScientificAppShell>
   );
