@@ -41,7 +41,7 @@
   --color-plot-tooltip-ink: var(--color-viewer-label);
 
   --font-body: "IBM Plex Sans", ui-sans-serif, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-mono: var(--scientific-ui-font-sans, "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif);
 
   --space-3xs: 0.25rem;
   --space-2xs: 0.5rem;
