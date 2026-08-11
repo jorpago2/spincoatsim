@@ -516,6 +516,10 @@ export default function SpinCoatPage() {
           contextLabel="Current model"
           context={fileName || "No GDS loaded"}
           status={{ state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input", label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input" }}
+          help={{
+            summary: "Load a GDS section, define the existing stack, configure the coating calibration, then inspect and export the predicted profile.",
+            shortcuts: [{ keys: ["Esc"], description: "Close the active panel" }],
+          }}
           secondaryActions={<>
             <ScientificHeaderAction className="spin-header-example" label="Load example from header" onClick={loadDemo}><Document size={20} aria-hidden={true} /></ScientificHeaderAction>
             <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
