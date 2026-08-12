@@ -19,7 +19,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -528,8 +528,8 @@ export default function SpinCoatPage() {
       </>}
       navigation={<ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel ?? "input"} expandedId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} items={[
         { id: "input", triggerId: "spin-nav-input", label: "Input", icon: <Document size={20} />, controlsId: "spin-tool-panel" },
-        { id: "stack", triggerId: "spin-nav-stack", label: "Stack", icon: <Layers size={20} />, controlsId: "spin-tool-panel" },
-        { id: "coating", triggerId: "spin-nav-coating", label: "Coating", icon: <Chemistry size={20} />, controlsId: "spin-tool-panel" },
+        { id: "stack", triggerId: "spin-nav-stack", label: "Process stack", icon: <Layers size={20} />, controlsId: "spin-tool-panel" },
+        { id: "coating", triggerId: "spin-nav-coating", label: "Film model", icon: <Chemistry size={20} />, controlsId: "spin-tool-panel" },
       ]} />}
       panel={activePanel ? <ScientificTaskPanel
           className="spin-controls"
@@ -674,6 +674,22 @@ export default function SpinCoatPage() {
             <Tile><p>PLANARIZATION (DOP)</p><strong>{section.film.degreeOfPlanarizationPercent.toFixed(1)}%</strong></Tile>
             <Tile><p>THICKNESS NON-UNIFORMITY</p><strong>{section.film.thicknessNonUniformityPercent.toFixed(1)}%</strong></Tile>
           </div>
+
+          <ScientificValidationSummary
+            className="spin-validation-summary"
+            title="Model checks"
+            description="Numerical checks for this reduced coating model. Experimental calibration is still required before process transfer."
+            status={{
+              state: section.ignoredPaths > 0 || !coatingPreset || hasReferenceEdits ? "warning" : "ready",
+              label: section.ignoredPaths > 0 || !coatingPreset || hasReferenceEdits ? "Review model evidence" : "Model checks passed · experimental validation required",
+            }}
+            checks={[
+              { id: "mass", label: "Coating area", state: "passed", value: `${section.film.meanThicknessNm.toFixed(1)} nm mean`, detail: "The leveling surrogate conserves coating cross-sectional area." },
+              { id: "geometry", label: "Imported geometry", state: section.ignoredPaths > 0 ? "warning" : "passed", value: section.ignoredPaths > 0 ? `${section.ignoredPaths} path(s) omitted` : "No omitted paths" },
+              { id: "calibration", label: "Calibration provenance", state: coatingPreset && !hasReferenceEdits ? "passed" : "warning", detail: coatingPreset && !hasReferenceEdits ? coatingPreset.name : "Custom or edited calibration; verify against measured thickness." },
+              { id: "scope", label: "Physical scope", state: "warning", detail: "Flow, evaporation, edge bead, dewetting and chemistry are outside this model." },
+            ]}
+          />
 
           <div className="spin-legend">
             <span><i style={{ background: "#5c6570" }} />Substrate</span>

@@ -18,7 +18,7 @@ test("exports the SpinCoatSim application", async () => {
   }
   assert.match(html, /aria-label="Configuration tools"/);
   assert.match(html, /aria-expanded="false"/);
-  for (const tool of ["Input", "Stack", "Coating"]) assert.match(html, new RegExp(`>${tool}<`));
+  for (const tool of ["Input", "Process stack", "Film model"]) assert.match(html, new RegExp(`>${tool}<`));
   assert.match(html, /No coating profile yet/);
   assert.match(html, /Load example/);
   assert.match(html, /href="#spin-workspace"/);
