@@ -24,7 +24,6 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(html, /href="#spin-workspace"/);
   assert.match(html, /id="spin-workspace"/);
   assert.match(html, /href="https:\/\/jorpago2\.github\.io\/"/);
-  assert.match(html, /No profile yet/);
   assert.match(source, /Capabilities and model scope/);
   assert.match(source, /Metal oxides/);
   assert.match(source, /All polarities/);
