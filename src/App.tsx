@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -19,7 +19,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificOutcomeSummary, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificPlotTheme, useScientificResultTransition } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificAppShell, ScientificAutosaveStatus, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificOutcomeSummary, ScientificRecoveryNotice, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificAutosave, useScientificPlotTheme, useScientificResultTransition } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -55,6 +55,25 @@ type CoatingReference = {
   sourceUrl: string;
 };
 type ExportNotice = { fileName: string; context: string };
+type SpinSession = {
+  shapes: GdsShape[];
+  fileName: string;
+  topCell: string;
+  sliceY: number;
+  centreX: number;
+  viewWidth: number;
+  substrateThickness: number;
+  layers: StackLayer[];
+  calibration: CalibrationState;
+  coatingLibrary: "photoresist" | "oxide";
+  coatingPresetId: string;
+  photoresistPolarity: string;
+  photoresistManufacturer: string;
+  photoresistExposureNm: string;
+  metalOxideFamily: string;
+  levelingStrength: number;
+  levelingLength: number;
+};
 type SectionResult = {
   columns: MaterialSegment[][];
   film: {
@@ -499,10 +518,50 @@ export default function SpinCoatPage() {
 
   const localThickness = section?.film.localThickness[Math.max(0, Math.min(RESOLUTION - 1, cursorIndex))] ?? 0;
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
+  const session = useMemo<SpinSession>(() => ({
+    shapes, fileName, topCell, sliceY, centreX, viewWidth, substrateThickness, layers,
+    calibration: { referenceThickness, referenceRpm, rpm, exponent, shrinkage },
+    coatingLibrary, coatingPresetId, photoresistPolarity, photoresistManufacturer, photoresistExposureNm,
+    metalOxideFamily, levelingStrength, levelingLength,
+  }), [centreX, coatingLibrary, coatingPresetId, exponent, fileName, layers, levelingLength, levelingStrength, metalOxideFamily, photoresistExposureNm, photoresistManufacturer, photoresistPolarity, referenceRpm, referenceThickness, rpm, shapes, shrinkage, sliceY, substrateThickness, topCell, viewWidth]);
+  const restoreSession = useCallback((saved: SpinSession) => {
+    setShapes(saved.shapes);
+    setFileName(saved.fileName);
+    setTopCell(saved.topCell);
+    setSliceY(saved.sliceY);
+    setCentreX(saved.centreX);
+    setViewWidth(saved.viewWidth);
+    setSubstrateThickness(saved.substrateThickness);
+    setLayers(saved.layers);
+    setReferenceThickness(saved.calibration.referenceThickness);
+    setReferenceRpm(saved.calibration.referenceRpm);
+    setRpm(saved.calibration.rpm);
+    setExponent(saved.calibration.exponent);
+    setShrinkage(saved.calibration.shrinkage);
+    customCalibration.current = saved.calibration;
+    setCoatingLibrary(saved.coatingLibrary);
+    setCoatingPresetId(saved.coatingPresetId);
+    setPhotoresistPolarity(saved.photoresistPolarity);
+    setPhotoresistManufacturer(saved.photoresistManufacturer);
+    setPhotoresistExposureNm(saved.photoresistExposureNm);
+    setMetalOxideFamily(saved.metalOxideFamily);
+    setLevelingStrength(saved.levelingStrength);
+    setLevelingLength(saved.levelingLength);
+    setResultsFresh(false);
+    setError("");
+  }, []);
+  const autosave = useScientificAutosave({
+    storageKey: "spincoatsim:session",
+    value: session,
+    onRestore: restoreSession,
+    schemaVersion: 1,
+    maxBytes: 3_000_000,
+  });
 
   return (
     <ScientificAppShell
       className="spin-app"
+      recovery={autosave.recovery && <ScientificRecoveryNotice savedAt={autosave.recovery.savedAt} onRestore={autosave.restore} onDiscard={autosave.discard} />}
       panelOpen={Boolean(activePanel)}
       header={<>
         <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
@@ -630,11 +689,11 @@ export default function SpinCoatPage() {
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
           </section>}
         </ScientificTaskPanel> : undefined}
-      statusBar={<ScientificStatusBar className="spin-status" status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Coating profile ready" : "Load a GDS file or the example to begin" }} metadata={<dl>
+      statusBar={<ScientificStatusBar className="spin-status" status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Coating profile ready" : "Load a GDS file or the example to begin" }} metadata={<><ScientificAutosaveStatus status={autosave.status} savedAt={autosave.lastSavedAt} /><dl>
         <div><dt>Layers</dt><dd>{layers.length}</dd></div>
         <div><dt>Film</dt><dd>{section ? `${finalThickness.toFixed(1)} nm` : "—"}</dd></div>
         <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
-      </dl>} />}
+      </dl></>} />}
     >
         <section className="spin-preview scientific-stage" id="spin-workspace" tabIndex={-1} aria-label="Coating results">
           <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
