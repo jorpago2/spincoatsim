@@ -19,7 +19,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificOutcomeSummary, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificPlotTheme } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificOutcomeSummary, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificPlotTheme, useScientificResultTransition } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -174,13 +174,6 @@ export default function SpinCoatPage() {
   const [exportNotice, setExportNotice] = useState<ExportNotice | null>(null);
   const customCalibration = useRef<CalibrationState>({ ...INITIAL_CUSTOM_CALIBRATION });
 
-  const revealResults = () => {
-    setActivePanel(null);
-    requestAnimationFrame(() => {
-      resultHeading.current?.focus();
-    });
-  };
-
   const closePanel = () => {
     const panel = activePanel;
     setActivePanel(null);
@@ -272,6 +265,13 @@ export default function SpinCoatPage() {
       ignoredPaths: slices.reduce((sum, slice) => sum + slice.ignoredPaths, 0),
     };
   }, [shapes, layers, sliceY, xMin, xMax, substrateThickness, finalThickness, levelingStrength, levelingLength, viewWidth]);
+
+  useScientificResultTransition({
+    state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input",
+    resultRef: resultHeading,
+    completionKey: lastUpdated,
+    onReveal: () => setActivePanel(null),
+  });
 
   useEffect(() => {
     if (!section) return;
@@ -406,7 +406,6 @@ export default function SpinCoatPage() {
       const firstLayer = flattened[0].layer;
       setLayers((current) => current.map((layer) => ({ ...layer, gdsLayer: firstLayer })));
       setError("");
-      revealResults();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
     } finally {
@@ -422,7 +421,6 @@ export default function SpinCoatPage() {
     setCentreX(0);
     setViewWidth(100);
     setError("");
-    revealResults();
   }
 
   function changeLayer(id: number, patch: Partial<StackLayer>) {
@@ -647,10 +645,10 @@ export default function SpinCoatPage() {
             status={{ state: resultsFresh ? "up-to-date" : "modified", label: resultsFresh ? "Profile current" : "Parameters modified", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }}
             summary={`${coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " with local edits" : ""}` : "Custom calibration"}. The profile uses the current stack and film model; experimental calibration is still required before process transfer.`}
             metrics={[
-              { id: "dry-film", label: "Calibrated dry film", value: dryThickness.toFixed(1), unit: "nm" },
+              { id: "dry-film", label: "Calibrated dry film", value: dryThickness, unit: "nm", format: { significantDigits: 4 } },
               { id: "local-range", label: "Local thickness range", value: `${section.film.minimumThicknessNm.toFixed(1)}â€“${section.film.maximumThicknessNm.toFixed(1)}`, unit: "nm" },
-              { id: "planarization", label: "Planarization", value: `${section.film.degreeOfPlanarizationPercent.toFixed(1)}%` },
-              { id: "nonuniformity", label: "Non-uniformity", value: `${section.film.thicknessNonUniformityPercent.toFixed(1)}%` },
+              { id: "planarization", label: "Planarization", value: section.film.degreeOfPlanarizationPercent, unit: "%", format: { significantDigits: 3 } },
+              { id: "nonuniformity", label: "Non-uniformity", value: section.film.thicknessNonUniformityPercent, unit: "%", format: { significantDigits: 3 } },
             ]}
             actions={[
               { id: "export-png", label: "Export PNG", emphasis: "primary", onClick: exportPng },
