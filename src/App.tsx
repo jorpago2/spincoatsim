@@ -19,7 +19,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificPlotTheme } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -139,6 +139,7 @@ function saveBlob(blob: Blob, name: string) {
 
 export default function SpinCoatPage() {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const plotTheme = useScientificPlotTheme();
   const resultHeading = useRef<HTMLHeadingElement>(null);
   const [shapes, setShapes] = useState<GdsShape[]>([]);
   const [fileName, setFileName] = useState("");
@@ -386,7 +387,7 @@ export default function SpinCoatPage() {
       ? `y = ${sliceY.toFixed(2)} µm · z ×${verticalExaggeration.toFixed(0)}`
       : `Section y = ${sliceY.toFixed(2)} µm · vertical exaggeration ×${verticalExaggeration.toFixed(0)}`,
     margin.left, 20);
-  }, [section, cursorIndex, sliceY, xMin, viewWidth, canvasCssWidth]);
+  }, [section, cursorIndex, sliceY, xMin, viewWidth, canvasCssWidth, plotTheme]);
 
   async function loadGds(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
