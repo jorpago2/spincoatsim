@@ -705,7 +705,7 @@ export default function SpinCoatPage() {
             summary={`${coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " with local edits" : ""}` : "Custom calibration"}. The profile uses the current stack and film model; experimental calibration is still required before process transfer.`}
             metrics={[
               { id: "dry-film", label: "Calibrated dry film", value: dryThickness, unit: "nm", format: { significantDigits: 4 } },
-              { id: "local-range", label: "Local thickness range", value: `${section.film.minimumThicknessNm.toFixed(1)}â€“${section.film.maximumThicknessNm.toFixed(1)}`, unit: "nm" },
+              { id: "local-range", label: "Local thickness range", value: `${section.film.minimumThicknessNm.toFixed(1)}–${section.film.maximumThicknessNm.toFixed(1)}`, unit: "nm" },
               { id: "planarization", label: "Planarization", value: section.film.degreeOfPlanarizationPercent, unit: "%", format: { significantDigits: 3 } },
               { id: "nonuniformity", label: "Non-uniformity", value: section.film.thicknessNonUniformityPercent, unit: "%", format: { significantDigits: 3 } },
             ]}
