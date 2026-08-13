@@ -39,7 +39,8 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /className="spin-navigation"/);
   assert.match(source, /activeId=\{activePanel \?\? "input"\}/);
   assert.match(source, /expandedId=\{activePanel\}/);
-  assert.match(source, /resultHeading\.current\?\.focus\(\)/);
+  assert.match(source, /useScientificResultTransition\(\{/);
+  assert.match(source, /resultRef: resultHeading/);
   assert.match(source, /aria-describedby="spin-readout"/);
   assert.match(source, /event\.key === "ArrowLeft"/);
   assert.match(styles, /macrostructure: Workbench/);
