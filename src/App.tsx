@@ -510,7 +510,7 @@ export default function SpinCoatPage() {
         <ScientificHeader
           aria-label="SpinCoatSim"
           product="SpinCoatSim"
-          productMark="S"
+          productIcon="spin-coating"
           descriptor="Spin-coating simulator"
           href="/spincoatsim/"
           contextLabel="Current model"
