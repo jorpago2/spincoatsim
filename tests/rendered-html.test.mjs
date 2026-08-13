@@ -50,7 +50,8 @@ test("exports the SpinCoatSim application", async () => {
     assert.match(source, new RegExp(`<${component}`));
   }
   assert.match(source, /restoreCustomCalibration/);
-  assert.match(source, /Results update automatically/);
+  assert.match(source, /<ScientificOutcomeSummary\b/);
+  assert.match(source, /Parameters modified/);
   assert.match(source, /Reference process comparison/);
   assert.match(source, /provenance: parameterProvenance/);
   assert.match(source, /fileName=\{exportNotice\.fileName\}/);

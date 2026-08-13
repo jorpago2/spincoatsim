@@ -19,7 +19,7 @@ import {
   Tile,
 } from "@carbon/react";
 import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
-import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificStatus, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificPlotTheme } from "@jorpago2/scientific-ui";
+import { ExportReceipt, ScientificAppShell, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificOutcomeSummary, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificPlotTheme } from "@jorpago2/scientific-ui";
 import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
@@ -640,10 +640,23 @@ export default function SpinCoatPage() {
     >
         <section className="spin-preview scientific-stage" id="spin-workspace" tabIndex={-1} aria-label="Coating results">
           <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
-          {section && <div className="spin-preview-head scientific-stage__header">
-            <div><div aria-live="polite"><h2 ref={resultHeading} tabIndex={-1}>{fileName || "No profile yet"}</h2></div>{section && <div className="spin-result-context"><Tag size="sm" type={coatingPreset ? hasReferenceEdits ? "purple" : "teal" : "gray"}>{coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " + edits" : ""}` : "Custom calibration"}</Tag><ScientificStatus className="spin-live-status" status={{ state: resultsFresh ? "up-to-date" : "modified", label: resultsFresh ? "Results update automatically" : "Parameters modified", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }} /></div>}</div>
-            {section && <div className="spin-actions scientific-stage__actions"><Button kind="secondary" size="md" onClick={exportPng}>Export PNG</Button><Button kind="secondary" size="md" onClick={exportModel}>Export JSON</Button></div>}
-          </div>}
+          {section && <ScientificOutcomeSummary
+            className="spin-outcome"
+            title={fileName || "Coating profile"}
+            headingRef={resultHeading}
+            status={{ state: resultsFresh ? "up-to-date" : "modified", label: resultsFresh ? "Profile current" : "Parameters modified", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }}
+            summary={`${coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " with local edits" : ""}` : "Custom calibration"}. The profile uses the current stack and film model; experimental calibration is still required before process transfer.`}
+            metrics={[
+              { id: "dry-film", label: "Calibrated dry film", value: dryThickness.toFixed(1), unit: "nm" },
+              { id: "local-range", label: "Local thickness range", value: `${section.film.minimumThicknessNm.toFixed(1)}â€“${section.film.maximumThicknessNm.toFixed(1)}`, unit: "nm" },
+              { id: "planarization", label: "Planarization", value: `${section.film.degreeOfPlanarizationPercent.toFixed(1)}%` },
+              { id: "nonuniformity", label: "Non-uniformity", value: `${section.film.thicknessNonUniformityPercent.toFixed(1)}%` },
+            ]}
+            actions={[
+              { id: "export-png", label: "Export PNG", emphasis: "primary", onClick: exportPng },
+              { id: "export-json", label: "Export JSON", emphasis: "secondary", collapseAt: "sm", onClick: exportModel },
+            ]}
+          />}
           {exportNotice && <ExportReceipt className="spin-export-notice" fileName={exportNotice.fileName} format={exportNotice.fileName.endsWith(".png") ? "PNG" : "JSON"} destination={exportNotice.context} onDismiss={() => setExportNotice(null)} />}
           {section ? <>
           <canvas
@@ -666,15 +679,6 @@ export default function SpinCoatPage() {
             }}
           />
           <div className="spin-readout" id="spin-readout"><span>x = {cursorX.toFixed(2)} µm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
-
-          <div className="spin-metrics" data-fresh={resultsFresh}>
-            <Tile><p>CALIBRATED DRY FILM</p><strong>{dryThickness.toFixed(1)} nm</strong></Tile>
-            <Tile><p>AFTER SHRINKAGE</p><strong>{finalThickness.toFixed(1)} nm</strong></Tile>
-            <Tile><p>LOCAL RANGE</p><strong>{section.film.minimumThicknessNm.toFixed(1)}–{section.film.maximumThicknessNm.toFixed(1)} nm</strong></Tile>
-            <Tile><p>MEAN / MASS CHECK</p><strong>{section.film.meanThicknessNm.toFixed(1)} nm</strong></Tile>
-            <Tile><p>PLANARIZATION (DOP)</p><strong>{section.film.degreeOfPlanarizationPercent.toFixed(1)}%</strong></Tile>
-            <Tile><p>THICKNESS NON-UNIFORMITY</p><strong>{section.film.thicknessNonUniformityPercent.toFixed(1)}%</strong></Tile>
-          </div>
 
           <ScientificValidationSummary
             className="spin-validation-summary"
