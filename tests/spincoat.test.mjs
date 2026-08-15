@@ -3,6 +3,7 @@ import test from "node:test";
 import { filterMetalOxides, METAL_OXIDE_PRESETS } from "../lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_PRESETS } from "../lib/photoresists.js";
 import { buildMaterialColumns, buildSpinFilm, calibratedThickness, polygonIntervalsAtY, sampleIntervals } from "../lib/spincoat.js";
+import { flattenGds } from "../lib/gds.js";
 
 test("photoresist references are complete and physically valid", () => {
   assert.ok(PHOTORESIST_PRESETS.length >= 60);
@@ -45,7 +46,7 @@ test("builds an area-conserving coated cross-section from a GDS slice", () => {
   const { intervals } = polygonIntervalsAtY([shape], 1, 0);
   assert.deepEqual(intervals, [[-2, 2]]);
   const mask = sampleIntervals(intervals, -4, 4, 8);
-  assert.deepEqual(mask, [false, false, true, true, true, true, false, false]);
+  assert.deepEqual(mask, [0, 0, 1, 1, 1, 1, 0, 0]);
 
   const columns = buildMaterialColumns({
     count: 8,
@@ -57,6 +58,27 @@ test("builds an area-conserving coated cross-section from a GDS slice", () => {
   assert.ok(film.maximumThicknessNm > film.minimumThicknessNm);
   assert.equal(film.surface[3], 100);
   assert.equal(film.surface[0], 0);
+});
+
+test("fractional cells preserve sub-grid feature area under translation", () => {
+  const width = 100;
+  const count = 480;
+  const centered = sampleIntervals([[-0.05, 0.05]], -50, 50, count);
+  const shifted = sampleIntervals([[0.05, 0.15]], -50, 50, count);
+  const representedWidth = (mask) => mask.reduce((sum, coverage) => sum + coverage, 0) * width / count;
+  assert.ok(Math.abs(representedWidth(centered) - 0.1) < 1e-12);
+  assert.ok(Math.abs(representedWidth(shifted) - 0.1) < 1e-12);
+});
+
+test("rejects an expansive GDS array before materializing it", () => {
+  const model = {
+    unitMicrometers: 1,
+    structures: new Map([
+      ["TOP", { elements: [{ kind: 0x0b, sname: "UNIT", rows: 65_535, columns: 65_535, mag: 1, angle: 0, reflect: false, points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] }] }],
+      ["UNIT", { elements: [{ kind: 0x08, layer: 1, datatype: 0, width: 0, pathType: 0, points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] }] }],
+    ]),
+  };
+  assert.throws(() => flattenGds(model, "TOP", { maxInstances: 1_000, maxShapes: 1_000, maxPoints: 10_000 }), /AREF.*safety limit/);
 });
 
 test("caps etching at the displayed substrate depth", () => {

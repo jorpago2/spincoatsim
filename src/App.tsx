@@ -55,10 +55,14 @@ type CoatingReference = {
   sourceUrl: string;
 };
 type ExportNotice = { fileName: string; context: string };
+type ParsedGds = ReturnType<typeof parseGds>;
+type PendingGds = { model: ParsedGds; fileName: string; sha256: string; selectedCell: string };
 type SpinSession = {
   shapes: GdsShape[];
   fileName: string;
   topCell: string;
+  sourceSha256: string;
+  compatibilityWarnings: string[];
   sliceY: number;
   centreX: number;
   viewWidth: number;
@@ -99,6 +103,8 @@ const DEMO_SHAPES: GdsShape[] = [
 
 const COLORS = ["#f0b84a", "#75b9c8", "#a28fe0", "#e67f65", "#93ba72", "#d986b5"];
 const RESOLUTION = 480;
+const MAX_GDS_BYTES = 25 * 1024 * 1024;
+const GDS_EXPANSION_LIMITS = { maxShapes: 250_000, maxInstances: 250_000, maxPoints: 2_000_000 };
 const INITIAL_CUSTOM_CALIBRATION: CalibrationState = {
   referenceThickness: 180,
   referenceRpm: 3000,
@@ -163,6 +169,9 @@ export default function SpinCoatPage() {
   const [shapes, setShapes] = useState<GdsShape[]>([]);
   const [fileName, setFileName] = useState("");
   const [topCell, setTopCell] = useState("");
+  const [sourceSha256, setSourceSha256] = useState("");
+  const [compatibilityWarnings, setCompatibilityWarnings] = useState<string[]>([]);
+  const [pendingGds, setPendingGds] = useState<PendingGds | null>(null);
   const [sliceY, setSliceY] = useState(0);
   const [centreX, setCentreX] = useState(0);
   const [viewWidth, setViewWidth] = useState(100);
@@ -412,13 +421,33 @@ export default function SpinCoatPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const parsed = parseGds(await file.arrayBuffer());
-      const cell = parsed.topCells[0];
-      const flattened = flattenGds(parsed, cell);
+      if (file.size > MAX_GDS_BYTES) throw new Error(`The GDS is ${(file.size / 1024 / 1024).toFixed(1)} MB; the browser safety limit is ${MAX_GDS_BYTES / 1024 / 1024} MB.`);
+      const buffer = await file.arrayBuffer();
+      const parsed = parseGds(buffer);
+      const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buffer)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      if (parsed.topCells.length > 1) {
+        setPendingGds({ model: parsed, fileName: file.name, sha256: hash, selectedCell: parsed.topCells[0] });
+        setError("Select the top cell to simulate. No cell has been chosen automatically.");
+        return;
+      }
+      applyParsedGds(parsed, parsed.topCells[0], file.name, hash);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  function applyParsedGds(parsed: ParsedGds, cell: string, importedFileName: string, hash: string) {
+    try {
+      const flattened = flattenGds(parsed, cell, GDS_EXPANSION_LIMITS);
       const bounds = boundsOf(flattened);
       setTopCell(cell);
       setShapes(flattened);
-      setFileName(file.name);
+      setFileName(importedFileName);
+      setSourceSha256(hash);
+      setCompatibilityWarnings(parsed.compatibility.warnings);
+      setPendingGds(null);
       setCentreX((bounds.minX + bounds.maxX) / 2);
       setSliceY((bounds.minY + bounds.maxY) / 2);
       setViewWidth(Math.max(1, bounds.width));
@@ -427,8 +456,6 @@ export default function SpinCoatPage() {
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
-    } finally {
-      event.target.value = "";
     }
   }
 
@@ -436,6 +463,9 @@ export default function SpinCoatPage() {
     setShapes(DEMO_SHAPES);
     setFileName("demo-topography.gds");
     setTopCell("DEMO");
+    setSourceSha256("embedded-demo");
+    setCompatibilityWarnings([]);
+    setPendingGds(null);
     setSliceY(0);
     setCentreX(0);
     setViewWidth(100);
@@ -496,11 +526,13 @@ export default function SpinCoatPage() {
   function exportModel() {
     if (!section) return;
     const data = {
-      schema: "spincoatsim-model/v3",
-      source: { fileName, topCell, sliceYMicrometers: sliceY, centreXMicrometers: centreX, widthMicrometers: viewWidth },
+      schema: "spincoatsim-model/v4",
+      engine: { id: "spincoatsim-geometric-film", schemaVersion: 4, sectionResolution: RESOLUTION },
+      source: { fileName, sha256: sourceSha256, topCell, sliceYMicrometers: sliceY, centreXMicrometers: centreX, widthMicrometers: viewWidth, compatibilityWarnings },
       stack: { substrateThicknessNm: substrateThickness, layers },
       coating: { referencePreset: coatingPreset ? { category: coatingLibrary, id: coatingPreset.id, name: coatingPreset.name, sourceUrl: coatingPreset.sourceUrl } : null, referenceThicknessNm: referenceThickness, referenceRpm, rpm, exponent, shrinkagePercent: shrinkage, levelingStrengthPercent: levelingStrength, levelingLengthMicrometers: levelingLength, predictedFinalThicknessNm: finalThickness, provenance: parameterProvenance },
-      result: { minimumThicknessNm: section.film.minimumThicknessNm, meanThicknessNm: section.film.meanThicknessNm, maximumThicknessNm: section.film.maximumThicknessNm, degreeOfPlanarizationPercent: section.film.degreeOfPlanarizationPercent, thicknessNonUniformityPercent: section.film.thicknessNonUniformityPercent },
+      grid: { xMicrometers: Array.from({ length: RESOLUTION }, (_, index) => xMin + ((index + 0.5) / RESOLUTION) * viewWidth) },
+      result: { ...section.film, columns: section.columns, ignoredPaths: section.ignoredPaths },
     };
     const exportedFileName = "spincoat-model.json";
     saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), exportedFileName);
@@ -519,15 +551,17 @@ export default function SpinCoatPage() {
   const localThickness = section?.film.localThickness[Math.max(0, Math.min(RESOLUTION - 1, cursorIndex))] ?? 0;
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
   const session = useMemo<SpinSession>(() => ({
-    shapes, fileName, topCell, sliceY, centreX, viewWidth, substrateThickness, layers,
+    shapes, fileName, topCell, sourceSha256, compatibilityWarnings, sliceY, centreX, viewWidth, substrateThickness, layers,
     calibration: { referenceThickness, referenceRpm, rpm, exponent, shrinkage },
     coatingLibrary, coatingPresetId, photoresistPolarity, photoresistManufacturer, photoresistExposureNm,
     metalOxideFamily, levelingStrength, levelingLength,
-  }), [centreX, coatingLibrary, coatingPresetId, exponent, fileName, layers, levelingLength, levelingStrength, metalOxideFamily, photoresistExposureNm, photoresistManufacturer, photoresistPolarity, referenceRpm, referenceThickness, rpm, shapes, shrinkage, sliceY, substrateThickness, topCell, viewWidth]);
+  }), [centreX, coatingLibrary, coatingPresetId, compatibilityWarnings, exponent, fileName, layers, levelingLength, levelingStrength, metalOxideFamily, photoresistExposureNm, photoresistManufacturer, photoresistPolarity, referenceRpm, referenceThickness, rpm, shapes, shrinkage, sliceY, sourceSha256, substrateThickness, topCell, viewWidth]);
   const restoreSession = useCallback((saved: SpinSession) => {
     setShapes(saved.shapes);
     setFileName(saved.fileName);
     setTopCell(saved.topCell);
+    setSourceSha256(saved.sourceSha256 ?? "");
+    setCompatibilityWarnings(saved.compatibilityWarnings ?? []);
     setSliceY(saved.sliceY);
     setCentreX(saved.centreX);
     setViewWidth(saved.viewWidth);
@@ -603,6 +637,12 @@ export default function SpinCoatPage() {
           {activePanel === "input" && <section className="spin-control-section">
             <Tile className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</Tile>
             <FileUploaderButton id="spin-gds-upload" className="spin-upload" accept={[".gds", ".gdsii"]} buttonKind="tertiary" size="md" labelText="Choose a local .gds file" onChange={loadGds} />
+            {pendingGds && <div className="spin-top-cell-selection">
+              <Select id="spin-top-cell" labelText="Top cell" size="md" value={pendingGds.selectedCell} onChange={(event) => setPendingGds((current) => current ? { ...current, selectedCell: event.target.value } : current)}>
+                {pendingGds.model.topCells.map((cell) => <SelectItem key={cell} value={cell} text={cell} />)}
+              </Select>
+              <Button kind="primary" size="md" onClick={() => applyParsedGds(pendingGds.model, pendingGds.selectedCell, pendingGds.fileName, pendingGds.sha256)}>Use selected cell</Button>
+            </div>}
             <Button className="spin-example" kind="secondary" size="md" aria-label="Load example from Input panel" onClick={loadDemo}>Load example</Button>
             {error && <p className="spin-error" role="alert">{error}</p>}
             <Grid condensed className="spin-fields">
@@ -611,6 +651,10 @@ export default function SpinCoatPage() {
               <Column sm={4} md={8} lg={16}><NumberField id="displayed-width" label="Displayed width" unit="µm" value={viewWidth} min={0.1} max={1e6} step={0.1} onValue={(value) => setViewWidth(bounded(value, viewWidth, 0.1, 1e6))} /></Column>
             </Grid>
             <p className="spin-note">{shapes.length ? `Cell ${topCell} · layers ${availableLayers.join(", ")}. The section currently intersects polygon geometry.` : "Load a GDS or the example to reveal the stack and coating result."}</p>
+            {compatibilityWarnings.length > 0 && <div className="spin-compatibility" role="status">
+              <strong>Import compatibility review</strong>
+              <ul>{compatibilityWarnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+            </div>}
             <Accordion align="start" size="sm" className="spin-tool-about">
               <AccordionItem title="Capabilities and model scope">
                 <p className="spin-hero-flow">GDS <span>→</span> STACK <span>→</span> FILM PROFILE</p>
@@ -742,12 +786,12 @@ export default function SpinCoatPage() {
             title="Model checks"
             description="Numerical checks for this reduced coating model. Experimental calibration is still required before process transfer."
             status={{
-              state: section.ignoredPaths > 0 || !coatingPreset || hasReferenceEdits ? "warning" : "ready",
-              label: section.ignoredPaths > 0 || !coatingPreset || hasReferenceEdits ? "Review model evidence" : "Model checks passed · experimental validation required",
+              state: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 || !coatingPreset || hasReferenceEdits ? "warning" : "ready",
+              label: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 || !coatingPreset || hasReferenceEdits ? "Review model evidence" : "Model checks passed · experimental validation required",
             }}
             checks={[
               { id: "mass", label: "Coating area", state: "passed", value: `${section.film.meanThicknessNm.toFixed(1)} nm mean`, detail: "The leveling surrogate conserves coating cross-sectional area." },
-              { id: "geometry", label: "Imported geometry", state: section.ignoredPaths > 0 ? "warning" : "passed", value: section.ignoredPaths > 0 ? `${section.ignoredPaths} path(s) omitted` : "No omitted paths" },
+              { id: "geometry", label: "Imported geometry", state: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 ? "warning" : "passed", value: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 ? `${section.ignoredPaths + compatibilityWarnings.length} import issue(s)` : "No known omissions", detail: compatibilityWarnings[0] },
               { id: "calibration", label: "Calibration provenance", state: coatingPreset && !hasReferenceEdits ? "passed" : "warning", detail: coatingPreset && !hasReferenceEdits ? coatingPreset.name : "Custom or edited calibration; verify against measured thickness." },
               { id: "scope", label: "Physical scope", state: "warning", detail: "Flow, evaporation, edge bead, dewetting and chemistry are outside this model." },
             ]}
