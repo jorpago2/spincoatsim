@@ -58,7 +58,7 @@ type ExportNotice = { fileName: string; context: string };
 type ParsedGds = ReturnType<typeof parseGds>;
 type PendingGds = { model: ParsedGds; fileName: string; sha256: string; selectedCell: string };
 type SpinSession = {
-  shapes: GdsShape[];
+  shapes?: GdsShape[];
   fileName: string;
   topCell: string;
   sourceSha256: string;
@@ -551,13 +551,13 @@ export default function SpinCoatPage() {
   const localThickness = section?.film.localThickness[Math.max(0, Math.min(RESOLUTION - 1, cursorIndex))] ?? 0;
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
   const session = useMemo<SpinSession>(() => ({
-    shapes, fileName, topCell, sourceSha256, compatibilityWarnings, sliceY, centreX, viewWidth, substrateThickness, layers,
+    fileName, topCell, sourceSha256, compatibilityWarnings, sliceY, centreX, viewWidth, substrateThickness, layers,
     calibration: { referenceThickness, referenceRpm, rpm, exponent, shrinkage },
     coatingLibrary, coatingPresetId, photoresistPolarity, photoresistManufacturer, photoresistExposureNm,
     metalOxideFamily, levelingStrength, levelingLength,
-  }), [centreX, coatingLibrary, coatingPresetId, compatibilityWarnings, exponent, fileName, layers, levelingLength, levelingStrength, metalOxideFamily, photoresistExposureNm, photoresistManufacturer, photoresistPolarity, referenceRpm, referenceThickness, rpm, shapes, shrinkage, sliceY, sourceSha256, substrateThickness, topCell, viewWidth]);
+  }), [centreX, coatingLibrary, coatingPresetId, compatibilityWarnings, exponent, fileName, layers, levelingLength, levelingStrength, metalOxideFamily, photoresistExposureNm, photoresistManufacturer, photoresistPolarity, referenceRpm, referenceThickness, rpm, shrinkage, sliceY, sourceSha256, substrateThickness, topCell, viewWidth]);
   const restoreSession = useCallback((saved: SpinSession) => {
-    setShapes(saved.shapes);
+    setShapes(saved.shapes ?? []);
     setFileName(saved.fileName);
     setTopCell(saved.topCell);
     setSourceSha256(saved.sourceSha256 ?? "");
@@ -582,7 +582,7 @@ export default function SpinCoatPage() {
     setLevelingStrength(saved.levelingStrength);
     setLevelingLength(saved.levelingLength);
     setResultsFresh(false);
-    setError("");
+    setError(saved.shapes?.length || !saved.fileName ? "" : `Reimport ${saved.fileName} to restore its GDS geometry; autosave keeps configuration but not large layout data.`);
   }, []);
   const autosave = useScientificAutosave({
     storageKey: "spincoatsim:session",
