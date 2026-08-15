@@ -635,6 +635,7 @@ export default function SpinCoatPage() {
   return (
     <ScientificAppShell
       className="spin-app"
+      previewStageWhenPanelOpen
       recovery={autosave.recovery && <ScientificRecoveryNotice savedAt={autosave.recovery.savedAt} onRestore={autosave.restore} onDiscard={autosave.discard} />}
       panelOpen={Boolean(activePanel)}
       header={<>
@@ -642,6 +643,7 @@ export default function SpinCoatPage() {
         <ScientificHeader
           aria-label="SpinCoatSim"
           product="SpinCoatSim"
+          compactProduct="SpinCoat"
           productIcon="spin-coating"
           descriptor="Spin-coating simulator"
           href="/spincoatsim/"
@@ -680,7 +682,7 @@ export default function SpinCoatPage() {
             {gdsProgress && <div className="spin-import-progress" role="status" aria-live="polite">
               <span>{gdsProgress.stage} · {Math.round(gdsProgress.completed * 100)}%</span>
               <progress max={1} value={gdsProgress.completed}>{Math.round(gdsProgress.completed * 100)}%</progress>
-              <Button kind="danger--tertiary" size="sm" onClick={cancelActiveGdsImport}>Cancel import</Button>
+              <Button className="spin-import-cancel" kind="danger--tertiary" size="sm" onClick={cancelActiveGdsImport}>Cancel import</Button>
             </div>}
             {pendingGds && <div className="spin-top-cell-selection">
               <Select id="spin-top-cell" labelText="Top cell" size="md" value={pendingGds.selectedCell} onChange={(event) => setPendingGds((current) => current ? { ...current, selectedCell: event.target.value } : current)}>

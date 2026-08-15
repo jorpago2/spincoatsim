@@ -60,7 +60,7 @@ body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-
 .spin-upload, .spin-example, .spin-add { inline-size: 100%; }
 .spin-import-progress { display: grid; gap: var(--space-xs); margin-block: var(--space-sm); color: var(--cds-text-secondary); font-size: var(--text-xs); }
 .spin-import-progress progress { inline-size: 100%; accent-color: var(--cds-support-info); }
-.spin-import-progress .cds--btn { inline-size: max-content; }
+.spin-import-cancel { inline-size: max-content; }
 .spin-example { margin-block-start: var(--space-2xs); }
 .spin-error { margin: var(--space-xs) 0 0; padding: var(--space-xs); border-inline-start: .1875rem solid var(--cds-support-error); background: var(--cds-notification-background-error); color: var(--cds-text-primary); font-size: var(--text-xs); }
 .spin-fields, .spin-layer-fields { margin-inline: 0; padding-inline: 0; row-gap: var(--space-sm); }
