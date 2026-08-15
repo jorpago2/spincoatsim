@@ -20,7 +20,14 @@ import {
 } from "@carbon/react";
 import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
 import { ExportReceipt, ScientificAppShell, ScientificAutosaveStatus, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificOutcomeSummary, ScientificRecoveryNotice, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificAutosave, useScientificPlotTheme, useScientificResultTransition } from "@jorpago2/scientific-ui";
-import { boundsOf, flattenGds, parseGds } from "@/lib/gds.js";
+import {
+  cancelGdsImport,
+  flattenPendingGds,
+  importGdsFile,
+  type GdsCompleteResult,
+  type GdsProgress,
+  type GdsShape,
+} from "./workers/gdsClient";
 import { filterMetalOxides, METAL_OXIDE_FAMILIES, METAL_OXIDE_PRESETS } from "@/lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_MANUFACTURERS, PHOTORESIST_POLARITIES, PHOTORESIST_PRESETS } from "@/lib/photoresists.js";
 import {
@@ -31,7 +38,6 @@ import {
   sampleIntervals,
 } from "@/lib/spincoat.js";
 
-type GdsShape = ReturnType<typeof flattenGds>[number];
 type LayerMode = "uniform" | "patterned" | "etch";
 type StackLayer = { id: number; name: string; mode: LayerMode; thicknessNm: number; gdsLayer: number; color: string };
 type MaterialSegment = { name: string; color: string; bottom: number; top: number };
@@ -55,8 +61,7 @@ type CoatingReference = {
   sourceUrl: string;
 };
 type ExportNotice = { fileName: string; context: string };
-type ParsedGds = ReturnType<typeof parseGds>;
-type PendingGds = { model: ParsedGds; fileName: string; sha256: string; selectedCell: string };
+type PendingGds = { importId: string; topCells: string[]; compatibilityWarnings: string[]; fileName: string; sha256: string; selectedCell: string };
 type SpinSession = {
   shapes?: GdsShape[];
   fileName: string;
@@ -198,7 +203,7 @@ export default function SpinCoatPage() {
   const [error, setError] = useState("");
   const [activePanel, setActivePanel] = useState<ToolPanel | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
-  const [resultsFresh, setResultsFresh] = useState(false);
+  const [gdsProgress, setGdsProgress] = useState<GdsProgress | null>(null);
   const [exportNotice, setExportNotice] = useState<ExportNotice | null>(null);
   const customCalibration = useRef<CalibrationState>({ ...INITIAL_CUSTOM_CALIBRATION });
 
@@ -219,6 +224,8 @@ export default function SpinCoatPage() {
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [activePanel]);
+
+  useEffect(() => () => cancelGdsImport(), []);
 
   useEffect(() => {
     const element = canvas.current;
@@ -295,7 +302,7 @@ export default function SpinCoatPage() {
   }, [shapes, layers, sliceY, xMin, xMax, substrateThickness, finalThickness, levelingStrength, levelingLength, viewWidth]);
 
   useScientificResultTransition({
-    state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input",
+    state: section ? "up-to-date" : "needs-input",
     resultRef: resultHeading,
     completionKey: lastUpdated,
     onReveal: () => setActivePanel(null),
@@ -305,7 +312,6 @@ export default function SpinCoatPage() {
     if (!section) return;
     const updateTimer = window.setTimeout(() => {
       setLastUpdated(new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date()));
-      setResultsFresh(true);
     }, 0);
     return () => {
       window.clearTimeout(updateTimer);
@@ -421,37 +427,42 @@ export default function SpinCoatPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
+      cancelGdsImport();
+      setPendingGds(null);
       if (file.size > MAX_GDS_BYTES) throw new Error(`The GDS is ${(file.size / 1024 / 1024).toFixed(1)} MB; the browser safety limit is ${MAX_GDS_BYTES / 1024 / 1024} MB.`);
       const buffer = await file.arrayBuffer();
-      const parsed = parseGds(buffer);
       const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buffer)), (byte) => byte.toString(16).padStart(2, "0")).join("");
-      if (parsed.topCells.length > 1) {
-        setPendingGds({ model: parsed, fileName: file.name, sha256: hash, selectedCell: parsed.topCells[0] });
+      setGdsProgress({ stage: "Starting worker", completed: 0 });
+      const result = await importGdsFile(buffer, GDS_EXPANSION_LIMITS, setGdsProgress);
+      if (result.kind === "selection-required") {
+        setPendingGds({ importId: result.importId, topCells: result.topCells, compatibilityWarnings: result.compatibilityWarnings, fileName: file.name, sha256: hash, selectedCell: result.topCells[0] });
         setError("Select the top cell to simulate. No cell has been chosen automatically.");
+        setGdsProgress(null);
         return;
       }
-      applyParsedGds(parsed, parsed.topCells[0], file.name, hash);
+      applyGdsResult(result, file.name, hash);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
+      if (!(reason instanceof DOMException && reason.name === "AbortError")) {
+        setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
+      }
     } finally {
+      setGdsProgress(null);
       event.target.value = "";
     }
   }
 
-  function applyParsedGds(parsed: ParsedGds, cell: string, importedFileName: string, hash: string) {
+  function applyGdsResult(result: GdsCompleteResult, importedFileName: string, hash: string) {
     try {
-      const flattened = flattenGds(parsed, cell, GDS_EXPANSION_LIMITS);
-      const bounds = boundsOf(flattened);
-      setTopCell(cell);
-      setShapes(flattened);
+      setTopCell(result.topCell);
+      setShapes(result.shapes);
       setFileName(importedFileName);
       setSourceSha256(hash);
-      setCompatibilityWarnings(parsed.compatibility.warnings);
+      setCompatibilityWarnings(result.compatibilityWarnings);
       setPendingGds(null);
-      setCentreX((bounds.minX + bounds.maxX) / 2);
-      setSliceY((bounds.minY + bounds.maxY) / 2);
-      setViewWidth(Math.max(1, bounds.width));
-      const firstLayer = flattened[0].layer;
+      setCentreX((result.bounds.minX + result.bounds.maxX) / 2);
+      setSliceY((result.bounds.minY + result.bounds.maxY) / 2);
+      setViewWidth(Math.max(1, result.bounds.width));
+      const firstLayer = result.shapes[0].layer;
       setLayers((current) => current.map((layer) => ({ ...layer, gdsLayer: firstLayer })));
       setError("");
     } catch (reason) {
@@ -459,7 +470,37 @@ export default function SpinCoatPage() {
     }
   }
 
+  async function applyPendingTopCell() {
+    if (!pendingGds) return;
+    try {
+      setGdsProgress({ stage: "Starting worker", completed: 0 });
+      const result = await flattenPendingGds(
+        pendingGds.importId,
+        pendingGds.selectedCell,
+        GDS_EXPANSION_LIMITS,
+        setGdsProgress,
+      );
+      if (result.kind !== "complete") throw new Error("The selected GDS cell was not flattened.");
+      applyGdsResult(result, pendingGds.fileName, pendingGds.sha256);
+    } catch (reason) {
+      if (!(reason instanceof DOMException && reason.name === "AbortError")) {
+        setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
+      }
+    } finally {
+      setGdsProgress(null);
+    }
+  }
+
+  function cancelActiveGdsImport() {
+    cancelGdsImport();
+    setGdsProgress(null);
+    setPendingGds(null);
+    setError("GDS import cancelled. Select the file again to restart.");
+  }
+
   function loadDemo() {
+    cancelGdsImport();
+    setGdsProgress(null);
     setShapes(DEMO_SHAPES);
     setFileName("demo-topography.gds");
     setTopCell("DEMO");
@@ -581,7 +622,6 @@ export default function SpinCoatPage() {
     setMetalOxideFamily(saved.metalOxideFamily);
     setLevelingStrength(saved.levelingStrength);
     setLevelingLength(saved.levelingLength);
-    setResultsFresh(false);
     setError(saved.shapes?.length || !saved.fileName ? "" : `Reimport ${saved.fileName} to restore its GDS geometry; autosave keeps configuration but not large layout data.`);
   }, []);
   const autosave = useScientificAutosave({
@@ -607,7 +647,7 @@ export default function SpinCoatPage() {
           href="/spincoatsim/"
           contextLabel="Current model"
           context={fileName || "No GDS loaded"}
-          status={{ state: section ? resultsFresh ? "up-to-date" : "modified" : "needs-input", label: section ? resultsFresh ? "Up to date" : "Modified" : "Needs input" }}
+          status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Up to date" : "Needs input" }}
           help={{
             summary: "Load a GDS section, define the existing stack, configure the coating calibration, then inspect and export the predicted profile.",
             shortcuts: [{ keys: ["Esc"], description: "Close the active panel" }],
@@ -636,12 +676,17 @@ export default function SpinCoatPage() {
         >
           {activePanel === "input" && <section className="spin-control-section">
             <Tile className="spin-file-status" aria-live="polite">{fileName || "No GDS loaded"}</Tile>
-            <FileUploaderButton id="spin-gds-upload" className="spin-upload" accept={[".gds", ".gdsii"]} buttonKind="tertiary" size="md" labelText="Choose a local .gds file" onChange={loadGds} />
+            <FileUploaderButton id="spin-gds-upload" className="spin-upload" accept={[".gds", ".gdsii"]} buttonKind="tertiary" size="md" labelText="Choose a local .gds file" disabled={Boolean(gdsProgress)} onChange={loadGds} />
+            {gdsProgress && <div className="spin-import-progress" role="status" aria-live="polite">
+              <span>{gdsProgress.stage} · {Math.round(gdsProgress.completed * 100)}%</span>
+              <progress max={1} value={gdsProgress.completed}>{Math.round(gdsProgress.completed * 100)}%</progress>
+              <Button kind="danger--tertiary" size="sm" onClick={cancelActiveGdsImport}>Cancel import</Button>
+            </div>}
             {pendingGds && <div className="spin-top-cell-selection">
               <Select id="spin-top-cell" labelText="Top cell" size="md" value={pendingGds.selectedCell} onChange={(event) => setPendingGds((current) => current ? { ...current, selectedCell: event.target.value } : current)}>
-                {pendingGds.model.topCells.map((cell) => <SelectItem key={cell} value={cell} text={cell} />)}
+                {pendingGds.topCells.map((cell) => <SelectItem key={cell} value={cell} text={cell} />)}
               </Select>
-              <Button kind="primary" size="md" onClick={() => applyParsedGds(pendingGds.model, pendingGds.selectedCell, pendingGds.fileName, pendingGds.sha256)}>Use selected cell</Button>
+              <Button kind="primary" size="md" disabled={Boolean(gdsProgress)} onClick={() => { void applyPendingTopCell(); }}>Use selected cell</Button>
             </div>}
             <Button className="spin-example" kind="secondary" size="md" aria-label="Load example from Input panel" onClick={loadDemo}>Load example</Button>
             {error && <p className="spin-error" role="alert">{error}</p>}
@@ -745,7 +790,7 @@ export default function SpinCoatPage() {
             className="spin-outcome"
             title={fileName || "Coating profile"}
             headingRef={resultHeading}
-            status={{ state: resultsFresh ? "up-to-date" : "modified", label: resultsFresh ? "Profile current" : "Parameters modified", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }}
+            status={{ state: "up-to-date", label: "Profile current", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }}
             summary={`${coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " with local edits" : ""}` : "Custom calibration"}. The profile uses the current stack and film model; experimental calibration is still required before process transfer.`}
             metrics={[
               { id: "dry-film", label: "Calibrated dry film", value: dryThickness, unit: "nm", format: { significantDigits: 4 } },
@@ -792,7 +837,8 @@ export default function SpinCoatPage() {
             checks={[
               { id: "mass", label: "Coating area", state: "passed", value: `${section.film.meanThicknessNm.toFixed(1)} nm mean`, detail: "The leveling surrogate conserves coating cross-sectional area." },
               { id: "geometry", label: "Imported geometry", state: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 ? "warning" : "passed", value: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 ? `${section.ignoredPaths + compatibilityWarnings.length} import issue(s)` : "No known omissions", detail: compatibilityWarnings[0] },
-              { id: "calibration", label: "Calibration provenance", state: coatingPreset && !hasReferenceEdits ? "passed" : "warning", detail: coatingPreset && !hasReferenceEdits ? coatingPreset.name : "Custom or edited calibration; verify against measured thickness." },
+              { id: "reference", label: "Reference traceability", state: coatingPreset && !hasReferenceEdits ? "passed" : "warning", detail: coatingPreset && !hasReferenceEdits ? `${coatingPreset.name}; source and reference point retained.` : "Custom or edited reference; verify against measured thickness." },
+              { id: "calibration", label: "Calibration law", state: "warning", detail: "The exponent is a generic single-reference-point model, not a validated multipoint calibration with uncertainty." },
               { id: "scope", label: "Physical scope", state: "warning", detail: "Flow, evaporation, edge bead, dewetting and chemistry are outside this model." },
             ]}
           />

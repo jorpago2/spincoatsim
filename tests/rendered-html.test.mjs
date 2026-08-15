@@ -52,7 +52,9 @@ test("exports the SpinCoatSim application", async () => {
   }
   assert.match(source, /restoreCustomCalibration/);
   assert.match(source, /<ScientificOutcomeSummary\b/);
-  assert.match(source, /Parameters modified/);
+  assert.match(source, /Profile current/);
+  assert.match(source, /importGdsFile/);
+  assert.match(source, /Calibration law/);
   assert.match(source, /Reference process comparison/);
   assert.match(source, /provenance: parameterProvenance/);
   assert.match(source, /fileName=\{exportNotice\.fileName\}/);
