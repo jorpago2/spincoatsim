@@ -65,6 +65,8 @@ const INITIAL_CUSTOM_CALIBRATION: CalibrationState = {
   shrinkage: 25,
 };
 
+type SavedSpinSession = SpinSession & { customCalibration?: CalibrationState };
+
 function bounded(value: number, fallback: number, minimum: number, maximum: number) {
   return Number.isFinite(value) ? Math.max(minimum, Math.min(maximum, value)) : fallback;
 }
@@ -156,6 +158,7 @@ export default function SpinCoatPage() {
   const [error, setError] = useState("");
   const [activePanel, setActivePanel] = useState<ToolPanel | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
+  const [resultCompletionKey, setResultCompletionKey] = useState(0);
   const [gdsProgress, setGdsProgress] = useState<GdsProgress | null>(null);
   const [exportNotice, setExportNotice] = useState<ExportNotice | null>(null);
   const [customCalibration, setCustomCalibration] = useState<CalibrationState>({ ...INITIAL_CUSTOM_CALIBRATION });
@@ -245,7 +248,7 @@ export default function SpinCoatPage() {
   useScientificResultTransition({
     state: section ? "up-to-date" : "needs-input",
     resultRef: resultHeading,
-    completionKey: lastUpdated,
+    completionKey: resultCompletionKey,
     onReveal: () => setActivePanel(null),
   });
 
@@ -304,6 +307,7 @@ export default function SpinCoatPage() {
       const firstLayer = result.shapes[0].layer;
       setLayers((current) => current.map((layer) => ({ ...layer, gdsLayer: firstLayer })));
       setError("");
+      setResultCompletionKey((current) => current + 1);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
     }
@@ -352,6 +356,7 @@ export default function SpinCoatPage() {
     setCentreX(0);
     setViewWidth(100);
     setError("");
+    setResultCompletionKey((current) => current + 1);
   }
 
   function changeLayer(id: number, patch: Partial<StackLayer>) {
@@ -432,13 +437,14 @@ export default function SpinCoatPage() {
 
   const localThickness = section?.film.localThickness[Math.max(0, Math.min(RESOLUTION - 1, cursorIndex))] ?? 0;
   const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
-  const session = useMemo<SpinSession>(() => ({
+  const session = useMemo<SavedSpinSession>(() => ({
     fileName, topCell, sourceSha256, compatibilityWarnings, sliceY, centreX, viewWidth, substrateThickness, layers,
     calibration: { referenceThickness, referenceRpm, rpm, exponent, shrinkage },
+    customCalibration,
     coatingLibrary, coatingPresetId, photoresistPolarity, photoresistManufacturer, photoresistExposureNm,
     metalOxideFamily, levelingStrength, levelingLength,
-  }), [centreX, coatingLibrary, coatingPresetId, compatibilityWarnings, exponent, fileName, layers, levelingLength, levelingStrength, metalOxideFamily, photoresistExposureNm, photoresistManufacturer, photoresistPolarity, referenceRpm, referenceThickness, rpm, shrinkage, sliceY, sourceSha256, substrateThickness, topCell, viewWidth]);
-  const restoreSession = useCallback((saved: SpinSession) => {
+  }), [centreX, coatingLibrary, coatingPresetId, compatibilityWarnings, customCalibration, exponent, fileName, layers, levelingLength, levelingStrength, metalOxideFamily, photoresistExposureNm, photoresistManufacturer, photoresistPolarity, referenceRpm, referenceThickness, rpm, shrinkage, sliceY, sourceSha256, substrateThickness, topCell, viewWidth]);
+  const restoreSession = useCallback((saved: SavedSpinSession) => {
     setShapes(saved.shapes ?? []);
     setFileName(saved.fileName);
     setTopCell(saved.topCell);
@@ -454,7 +460,8 @@ export default function SpinCoatPage() {
     setRpm(saved.calibration.rpm);
     setExponent(saved.calibration.exponent);
     setShrinkage(saved.calibration.shrinkage);
-    setCustomCalibration(saved.calibration);
+    const savedCustomCalibration = saved.customCalibration ?? (!saved.coatingPresetId ? saved.calibration : undefined);
+    if (savedCustomCalibration) setCustomCalibration(savedCustomCalibration);
     setCoatingLibrary(saved.coatingLibrary);
     setCoatingPresetId(saved.coatingPresetId);
     setPhotoresistPolarity(saved.photoresistPolarity);
@@ -479,9 +486,11 @@ export default function SpinCoatPage() {
       previewStageWhenPanelOpen
       recovery={autosave.recovery && <ScientificRecoveryNotice savedAt={autosave.recovery.savedAt} onRestore={autosave.restore} onDiscard={autosave.discard} />}
       panelOpen={Boolean(activePanel)}
-      header={<>
-        <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
-        <ScientificHeader
+      header={<ScientificHeader
+          skipLink={<>
+            <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
+            <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
+          </>}
           aria-label="SpinCoatSim"
           product="SpinCoatSim"
           compactProduct="SpinCoat"
@@ -499,8 +508,7 @@ export default function SpinCoatPage() {
             <ScientificHeaderAction className="spin-header-example" label="Load example from header" onClick={loadDemo}><Document size={20} aria-hidden={true} /></ScientificHeaderAction>
             <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
           </>}
-        />
-      </>}
+        />}
       navigation={<ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel} expandedId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} registerItemRef={(id, node) => { toolTriggerRefs.current[id as ToolPanel] = node; }} items={[
         { id: "input", triggerId: "spin-nav-input", label: "Input", icon: <Document size={20} />, controlsId: "spin-tool-panel" },
         { id: "stack", triggerId: "spin-nav-stack", label: "Process stack", icon: <Layers size={20} />, controlsId: "spin-tool-panel" },
@@ -617,7 +625,6 @@ export default function SpinCoatPage() {
       </dl></>} />}
     >
         <section className="spin-preview scientific-stage" id="spin-workspace" tabIndex={-1} aria-label="Coating results">
-          <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
           {section && <ScientificOutcomeSummary
             className="spin-outcome"
             title={fileName || "Coating profile"}

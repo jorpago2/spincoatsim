@@ -3,7 +3,7 @@ import test from "node:test";
 import { filterMetalOxides, METAL_OXIDE_PRESETS } from "../lib/metal-oxides.js";
 import { filterPhotoresists, PHOTORESIST_EXPOSURE_WAVELENGTHS, PHOTORESIST_PRESETS } from "../lib/photoresists.js";
 import { buildMaterialColumns, buildSpinFilm, calibratedThickness, polygonIntervalsAtY, sampleIntervals } from "../lib/spincoat.js";
-import { flattenGds } from "../lib/gds.js";
+import { flattenGds, parseGds } from "../lib/gds.js";
 
 test("photoresist references are complete and physically valid", () => {
   assert.ok(PHOTORESIST_PRESETS.length >= 60);
@@ -79,6 +79,55 @@ test("rejects an expansive GDS array before materializing it", () => {
     ]),
   };
   assert.throws(() => flattenGds(model, "TOP", { maxInstances: 1_000, maxShapes: 1_000, maxPoints: 10_000 }), /AREF.*safety limit/);
+});
+
+test("preserves absolute PATH width through referenced magnification", () => {
+  const record = (type, data = new Uint8Array()) => {
+    const result = new Uint8Array(4 + data.length);
+    new DataView(result.buffer).setUint16(0, result.length, false);
+    result[2] = type;
+    result.set(data, 4);
+    return result;
+  };
+  const text = (value) => new TextEncoder().encode(`${value}\0`);
+  const int32s = (values) => {
+    const data = new Uint8Array(values.length * 4);
+    const view = new DataView(data.buffer);
+    values.forEach((value, index) => view.setInt32(index * 4, value, false));
+    return data;
+  };
+  const int16 = (value) => {
+    const data = new Uint8Array(2);
+    new DataView(data.buffer).setInt16(0, value, false);
+    return data;
+  };
+  const int32 = (value) => {
+    const data = new Uint8Array(4);
+    new DataView(data.buffer).setInt32(0, value, false);
+    return data;
+  };
+  const join = (records) => {
+    const result = new Uint8Array(records.reduce((size, current) => size + current.length, 0));
+    let offset = 0;
+    for (const current of records) {
+      result.set(current, offset);
+      offset += current.length;
+    }
+    return result.buffer;
+  };
+  const top = [
+    record(0x05), record(0x06, text("TOP")), record(0x0a), record(0x12, text("CHILD")),
+    record(0x1b, Uint8Array.from([0x41, 0x20, 0, 0, 0, 0, 0, 0])),
+    record(0x10, int32s([0, 0])), record(0x11), record(0x07),
+  ];
+  const child = [
+    record(0x05), record(0x06, text("CHILD")), record(0x09), record(0x0d, int16(1)),
+    record(0x0e, int16(0)), record(0x0f, int32(-10)), record(0x10, int32s([0, 0, 100, 0])),
+    record(0x11), record(0x07),
+  ];
+  const model = parseGds(join([...top, ...child]));
+  const [shape] = flattenGds(model, "TOP");
+  assert.equal(shape.width, 0.01);
 });
 
 test("caps etching at the displayed substrate depth", () => {

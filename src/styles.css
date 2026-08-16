@@ -128,6 +128,12 @@ body { margin: 0; }
 .spin-status dd { margin: 0; color: var(--cds-text-primary); font-family: var(--font-mono); white-space: nowrap; }
 .spin-modal-copy { margin: 0 0 var(--space-md); color: var(--cds-text-secondary); line-height: 1.5; }
 
+/* Keep the modal's focused primary action readable against Carbon's focus state. */
+.cds--modal .cds--modal-footer .cds--btn--primary:focus {
+  background: var(--cds-button-primary-active);
+  color: var(--cds-text-on-color);
+}
+
 @media (min-width: 42rem) {
   .spin-preview { padding-inline: clamp(1.5rem, 3vw, 3rem); padding-block-end: var(--space-xl); }
 }
@@ -141,6 +147,30 @@ body { margin: 0; }
 
 @media (max-width: 41.99rem) {
   .spin-summary-metrics { grid-template-columns: minmax(0, 1fr); }
+
+  .spin-reference-picker .cds--list-box--expanded .cds--list-box__menu {
+    max-block-size: min(18rem, 42dvh);
+    overscroll-behavior: contain;
+  }
+}
+
+@media (max-width: 21.99rem) {
+  .spin-app .scientific-header__compact-product,
+  .spin-app .scientific-header__compact-separator {
+    display: none;
+  }
+
+  .cds--modal .cds--modal-footer {
+    block-size: auto;
+    flex-direction: column;
+  }
+
+  .cds--modal .cds--modal-footer .cds--btn {
+    flex: 1 1 auto;
+    inline-size: 100%;
+    max-inline-size: none;
+    white-space: nowrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

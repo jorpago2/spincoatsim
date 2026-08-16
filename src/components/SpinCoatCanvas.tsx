@@ -4,6 +4,12 @@ import type { SectionResult } from '../spincoatTypes'
 
 const RESOLUTION = 480
 
+function plotMargins(width: number) {
+  return width < 600
+    ? { left: 52, right: 14, top: 34, bottom: 43 }
+    : { left: 76, right: 30, top: 38, bottom: 55 }
+}
+
 type SpinCoatCanvasProps = {
   canvasRef: RefObject<HTMLCanvasElement | null>
   section: SectionResult
@@ -55,7 +61,8 @@ export function SpinCoatCanvas({
     context.fillRect(0, 0, width, height)
 
     const compact = width < 600
-    const margin = compact ? { left: 52, right: 14, top: 34, bottom: 43 } : { left: 76, right: 30, top: 38, bottom: 55 }
+    const plotFontSize = compact ? 11 : 12
+    const margin = plotMargins(width)
     const plotWidth = width - margin.left - margin.right
     const plotHeight = height - margin.top - margin.bottom
     const minZ = Math.min(...section.columns.flatMap((column) => column.map((segment) => segment.bottom)))
@@ -68,7 +75,7 @@ export function SpinCoatCanvas({
 
     context.strokeStyle = color('--color-plot-grid')
     context.lineWidth = 1
-    context.font = `${compact ? 9 : 12}px ${styles.getPropertyValue('--font-mono').trim()}`
+    context.font = `${plotFontSize}px ${styles.getPropertyValue('--font-mono').trim()}`
     context.fillStyle = color('--color-plot-axis')
     const verticalTicks = compact ? 3 : 5
     for (let tick = 0; tick <= verticalTicks; tick += 1) {
@@ -126,13 +133,14 @@ export function SpinCoatCanvas({
       context.arc(cursorCanvasX, y, compact ? 2 : 3, 0, 2 * Math.PI)
       context.fill()
     }
-    const labelWidth = compact ? 70 : 88
+    const labelWidth = compact ? 76 : 88
+    const labelHeight = compact ? 18 : 20
     const labelX = cursorCanvasX + labelWidth + 10 > width - margin.right ? cursorCanvasX - labelWidth - 8 : cursorCanvasX + 8
     const labelY = Math.max(margin.top + 5, cursorTopY - 23)
     context.fillStyle = color('--color-plot-tooltip')
-    context.fillRect(labelX, labelY, labelWidth, compact ? 16 : 20)
+    context.fillRect(labelX, labelY, labelWidth, labelHeight)
     context.fillStyle = color('--color-plot-tooltip-ink')
-    context.fillText(`${section.film.localThickness[cursorIndex].toFixed(1)} nm`, labelX + 5, labelY + (compact ? 11 : 14))
+    context.fillText(`${section.film.localThickness[cursorIndex].toFixed(1)} nm`, labelX + 5, labelY + (compact ? 13 : 14))
 
     context.fillStyle = color('--color-plot-axis')
     context.textAlign = 'center'
@@ -163,8 +171,13 @@ export function SpinCoatCanvas({
       aria-describedby="spin-readout"
       tabIndex={0}
       onPointerMove={(event) => {
-        const rectangle = event.currentTarget.getBoundingClientRect()
-        setCursorIndex(Math.max(0, Math.min(RESOLUTION - 1, Math.floor(((event.clientX - rectangle.left) / rectangle.width) * RESOLUTION))))
+        const element = event.currentTarget
+        const width = Math.max(1, element.clientWidth)
+        const margin = plotMargins(width)
+        const plotWidth = Math.max(1, width - margin.left - margin.right)
+        const rectangle = element.getBoundingClientRect()
+        const x = event.clientX - rectangle.left - element.clientLeft
+        setCursorIndex(Math.max(0, Math.min(RESOLUTION - 1, Math.floor(((x - margin.left) / plotWidth) * RESOLUTION))))
       }}
       onKeyDown={(event) => {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return

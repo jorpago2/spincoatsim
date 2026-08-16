@@ -119,6 +119,25 @@ test('demo result is responsive, current and explicit about calibration', async 
   expect(fit.previewOverflow).toBe('visible')
 })
 
+test('canvas pointer coordinates follow the plotted x-axis margins', async ({ page }) => {
+  await page.goto('')
+  await page.getByRole('button', { name: /Load example/ }).first().click()
+  const canvas = page.locator('canvas')
+  const box = await canvas.boundingBox()
+  expect(box).not.toBeNull()
+  if (!box) return
+
+  const margins = await canvas.evaluate((element) => {
+    const width = element.clientWidth
+    return width < 600 ? { left: 52, right: 14 } : { left: 76, right: 30 }
+  })
+  const readout = page.locator('#spin-readout span')
+  await page.mouse.move(box.x + margins.left + 1, box.y + box.height / 2)
+  await expect.poll(async () => Number((await readout.textContent())?.match(/-?\d+(?:\.\d+)?/)?.[0])).toBeLessThan(-49)
+  await page.mouse.move(box.x + box.width - margins.right - 1, box.y + box.height / 2)
+  await expect.poll(async () => Number((await readout.textContent())?.match(/-?\d+(?:\.\d+)?/)?.[0])).toBeGreaterThan(49)
+})
+
 test('active GDS work can be cancelled without publishing a late result', async ({
   page,
 }) => {
@@ -138,6 +157,10 @@ test('React owns panel visibility, keyboard focus and Carbon editor state', asyn
   page,
 }) => {
   await page.goto('')
+  const panelColumn = page.locator('.scientific-workbench__panel')
+  await expect(panelColumn).toBeHidden()
+  expect(await panelColumn.evaluate((element) => getComputedStyle(element).display)).toBe('none')
+
   const inputTool = page.getByRole('button', { name: 'Input' })
   const controlledId = await inputTool.getAttribute('aria-controls')
   expect(controlledId).toBeTruthy()
@@ -162,6 +185,55 @@ test('React owns panel visibility, keyboard focus and Carbon editor state', asyn
   await expect(page.getByRole('button', { name: /Use light theme/i })).toBeVisible()
 })
 
+test('result updates keep the active editor and page hierarchy stable', async ({
+  page,
+}) => {
+  await page.goto('')
+  await page.getByRole('button', { name: /Load example/ }).first().click()
+  await page.getByRole('button', { name: 'Film model' }).click()
+  await page.waitForTimeout(1_100)
+
+  const filmPanel = page.getByRole('complementary', { name: 'Calibrated film' })
+  const referenceProcess = page.getByRole('combobox', {
+    name: /Reference process/,
+  })
+  await page.getByRole('button', { name: 'Open' }).click()
+  await page
+    .getByRole('option', { name: 'MICROPOSIT S1805 · 0.5 µm' })
+    .click()
+
+  await expect(filmPanel).toBeVisible()
+  await expect(referenceProcess).toBeFocused()
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'SpinCoatSim spin-coating cross-section simulator',
+    }),
+  ).toHaveCount(1)
+})
+
+test('autosave recovery keeps custom calibration behind a selected reference', async ({
+  page,
+}) => {
+  await page.goto('')
+  await page.getByRole('button', { name: /Load example/ }).first().click()
+  await page.getByRole('button', { name: 'Film model' }).click()
+  await page.getByLabel('Film thickness').fill('245')
+  await page.getByRole('button', { name: 'Open' }).click()
+  await page
+    .getByRole('option', { name: 'MICROPOSIT S1805 · 0.5 µm' })
+    .click()
+  await expect(page.getByLabel('Film thickness')).toHaveValue('500')
+  await expect(page.locator('.scientific-autosave-status')).toContainText('Saved locally')
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Restore session' })).toBeVisible()
+  await page.getByRole('button', { name: 'Restore session' }).click()
+  await page.getByRole('button', { name: 'Film model' }).click()
+  await expect(page.getByLabel('Film thickness')).toHaveValue('500')
+  await page.getByRole('button', { name: 'Restore custom calibration' }).click()
+  await expect(page.getByLabel('Film thickness')).toHaveValue('245')
+})
+
 test('multiple GDS top cells are resolved in a React Carbon modal', async ({ page }) => {
   await page.goto('')
   await page.getByRole('button', { name: 'Input' }).click()
@@ -170,7 +242,30 @@ test('multiple GDS top cells are resolved in a React Carbon modal', async ({ pag
     mimeType: 'application/octet-stream',
     buffer: Buffer.from(twoTopCellGds()),
   })
-  await expect(page.getByRole('dialog', { name: 'GDS import' })).toBeVisible()
+  const modal = page.getByRole('dialog', { name: 'GDS import' })
+  await expect(modal).toBeVisible()
+  const report = await new AxeBuilder({ page }).analyze()
+  expect(
+    report.violations.filter((item) =>
+      ['serious', 'critical'].includes(item.impact ?? ''),
+    ),
+  ).toEqual([])
+
+  await page.setViewportSize({ width: 320, height: 568 })
+  const modalActions = modal.getByRole('button', {
+    name: /Cancel import|Use selected cell/,
+  })
+  const actionMetrics = await modalActions.evaluateAll((buttons) =>
+    buttons.map((button) => ({
+      clientHeight: button.clientHeight,
+      scrollHeight: button.scrollHeight,
+      width: button.getBoundingClientRect().width,
+    })),
+  )
+  expect(actionMetrics).toHaveLength(2)
+  expect(actionMetrics.every(({ clientHeight, scrollHeight }) => scrollHeight <= clientHeight)).toBe(true)
+  expect(actionMetrics.every(({ width }) => width >= 300)).toBe(true)
+
   await page.getByLabel('Top cell').selectOption('CELL_B')
   await page.getByRole('button', { name: 'Use selected cell' }).click()
   await expect(page.locator('canvas')).toBeVisible()
