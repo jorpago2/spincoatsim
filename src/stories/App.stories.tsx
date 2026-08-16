@@ -1,15 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { GlobalTheme } from "@carbon/react";
+import { ScientificUiProvider } from "@jorpago2/scientific-ui";
 
 import App from "../App";
 import "../carbon.scss";
 import "../styles.css";
+import "@jorpago2/scientific-ui/styles.css";
 
 const meta = {
   title: "SpinCoatSim/Workbench",
   component: App,
   parameters: { layout: "fullscreen" },
-  render: () => <GlobalTheme theme="g10"><App /></GlobalTheme>,
+  render: () => <ScientificUiProvider theme="light"><App /></ScientificUiProvider>,
 } satisfies Meta<typeof App>;
 
 export default meta;

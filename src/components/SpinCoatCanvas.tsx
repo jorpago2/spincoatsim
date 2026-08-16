@@ -1,0 +1,178 @@
+import { useEffect, useState, type RefObject } from 'react'
+import { useScientificPlotTheme } from '@jorpago2/scientific-ui'
+import type { SectionResult } from '../spincoatTypes'
+
+const RESOLUTION = 480
+
+type SpinCoatCanvasProps = {
+  canvasRef: RefObject<HTMLCanvasElement | null>
+  section: SectionResult
+  cursorIndex: number
+  setCursorIndex: (index: number | ((current: number) => number)) => void
+  cursorX: number
+  localThickness: number
+  sliceY: number
+  viewWidth: number
+  xMin: number
+}
+
+export function SpinCoatCanvas({
+  canvasRef,
+  section,
+  cursorIndex,
+  setCursorIndex,
+  cursorX,
+  localThickness,
+  sliceY,
+  viewWidth,
+  xMin,
+}: SpinCoatCanvasProps) {
+  const plotTheme = useScientificPlotTheme()
+  const [canvasCssWidth, setCanvasCssWidth] = useState(1200)
+
+  useEffect(() => {
+    const element = canvasRef.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => setCanvasCssWidth(Math.max(1, Math.round(entry.contentRect.width))))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [canvasRef])
+
+  useEffect(() => {
+    const element = canvasRef.current
+    if (!element) return
+    const width = canvasCssWidth
+    const height = Math.round(width * 650 / 1200)
+    const pixelRatio = window.devicePixelRatio || 1
+    element.width = Math.round(width * pixelRatio)
+    element.height = Math.round(height * pixelRatio)
+    const context = element.getContext('2d')
+    if (!context) return
+    const styles = getComputedStyle(document.documentElement)
+    const color = (token: string) => styles.getPropertyValue(token).trim()
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+    context.fillStyle = color('--color-plot-background')
+    context.fillRect(0, 0, width, height)
+
+    const compact = width < 600
+    const margin = compact ? { left: 52, right: 14, top: 34, bottom: 43 } : { left: 76, right: 30, top: 38, bottom: 55 }
+    const plotWidth = width - margin.left - margin.right
+    const plotHeight = height - margin.top - margin.bottom
+    const minZ = Math.min(...section.columns.flatMap((column) => column.map((segment) => segment.bottom)))
+    const highestFilmPoint = Math.max(...section.film.top)
+    const maxZ = highestFilmPoint + Math.max(20, (highestFilmPoint - minZ) * 0.05)
+    const zRange = maxZ - minZ
+    const mapY = (z: number) => margin.top + ((maxZ - z) / zRange) * plotHeight
+    const columnWidth = plotWidth / RESOLUTION
+    const verticalExaggeration = (viewWidth * 1000 / plotWidth) / (zRange / plotHeight)
+
+    context.strokeStyle = color('--color-plot-grid')
+    context.lineWidth = 1
+    context.font = `${compact ? 9 : 12}px ${styles.getPropertyValue('--font-mono').trim()}`
+    context.fillStyle = color('--color-plot-axis')
+    const verticalTicks = compact ? 3 : 5
+    for (let tick = 0; tick <= verticalTicks; tick += 1) {
+      const y = margin.top + (tick / verticalTicks) * plotHeight
+      const z = maxZ - (tick / verticalTicks) * zRange
+      context.beginPath()
+      context.moveTo(margin.left, y)
+      context.lineTo(width - margin.right, y)
+      context.stroke()
+      context.fillText(`${Math.round(z)}`, 8, y + 4)
+    }
+
+    section.columns.forEach((column, index) => {
+      const x = margin.left + index * columnWidth
+      for (const segment of column) {
+        context.fillStyle = segment.color
+        context.fillRect(x, mapY(segment.top), Math.ceil(columnWidth + 0.5), Math.max(1, mapY(segment.bottom) - mapY(segment.top)))
+      }
+      context.fillStyle = color('--color-plot-film')
+      context.fillRect(x, mapY(section.film.top[index]), Math.ceil(columnWidth + 0.5), Math.max(1, mapY(section.film.surface[index]) - mapY(section.film.top[index])))
+    })
+
+    const strokeProfile = (values: number[], stroke: string, lineWidth: number) => {
+      context.strokeStyle = stroke
+      context.lineWidth = lineWidth
+      context.beginPath()
+      values.forEach((z, index) => {
+        const x = margin.left + (index + 0.5) * columnWidth
+        if (index === 0) context.moveTo(x, mapY(z))
+        else context.lineTo(x, mapY(z))
+      })
+      context.stroke()
+    }
+    strokeProfile(section.film.surface, color('--color-plot-surface'), 1)
+    strokeProfile(section.film.top, color('--color-plot-film'), 2)
+
+    const cursorCanvasX = margin.left + (cursorIndex + 0.5) * columnWidth
+    const cursorSurfaceY = mapY(section.film.surface[cursorIndex])
+    const cursorTopY = mapY(section.film.top[cursorIndex])
+    context.strokeStyle = color('--color-plot-cursor')
+    context.setLineDash([6, 5])
+    context.beginPath()
+    context.moveTo(cursorCanvasX, margin.top)
+    context.lineTo(cursorCanvasX, height - margin.bottom)
+    context.stroke()
+    context.setLineDash([])
+    context.lineWidth = 2
+    context.beginPath()
+    context.moveTo(cursorCanvasX, cursorTopY)
+    context.lineTo(cursorCanvasX, cursorSurfaceY)
+    context.stroke()
+    context.fillStyle = color('--color-plot-cursor')
+    for (const y of [cursorTopY, cursorSurfaceY]) {
+      context.beginPath()
+      context.arc(cursorCanvasX, y, compact ? 2 : 3, 0, 2 * Math.PI)
+      context.fill()
+    }
+    const labelWidth = compact ? 70 : 88
+    const labelX = cursorCanvasX + labelWidth + 10 > width - margin.right ? cursorCanvasX - labelWidth - 8 : cursorCanvasX + 8
+    const labelY = Math.max(margin.top + 5, cursorTopY - 23)
+    context.fillStyle = color('--color-plot-tooltip')
+    context.fillRect(labelX, labelY, labelWidth, compact ? 16 : 20)
+    context.fillStyle = color('--color-plot-tooltip-ink')
+    context.fillText(`${section.film.localThickness[cursorIndex].toFixed(1)} nm`, labelX + 5, labelY + (compact ? 11 : 14))
+
+    context.fillStyle = color('--color-plot-axis')
+    context.textAlign = 'center'
+    const horizontalTicks = compact ? 2 : 4
+    for (let tick = 0; tick <= horizontalTicks; tick += 1) {
+      const x = margin.left + (tick / horizontalTicks) * plotWidth
+      context.fillText(`${(xMin + (tick / horizontalTicks) * viewWidth).toFixed(1)}`, x, height - (compact ? 15 : 23))
+    }
+    context.textAlign = 'left'
+    context.fillText('z (nm)', 8, margin.top - 10)
+    context.textAlign = 'right'
+    context.fillText('x (µm)', width - margin.right, height - 4)
+    context.textAlign = 'left'
+    context.fillStyle = color('--color-plot-cursor')
+    context.fillText(compact
+      ? `y = ${sliceY.toFixed(2)} µm · z ×${verticalExaggeration.toFixed(0)}`
+      : `Section y = ${sliceY.toFixed(2)} µm · vertical exaggeration ×${verticalExaggeration.toFixed(0)}`,
+    margin.left, 20)
+  }, [canvasCssWidth, canvasRef, cursorIndex, plotTheme, section, sliceY, viewWidth, xMin])
+
+  return <>
+    <canvas
+      ref={canvasRef}
+      width={1200}
+      height={650}
+      className="spin-canvas"
+      aria-label="Simulated material stack cross-section and spin-coated film"
+      aria-describedby="spin-readout"
+      tabIndex={0}
+      onPointerMove={(event) => {
+        const rectangle = event.currentTarget.getBoundingClientRect()
+        setCursorIndex(Math.max(0, Math.min(RESOLUTION - 1, Math.floor(((event.clientX - rectangle.left) / rectangle.width) * RESOLUTION))))
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+        event.preventDefault()
+        const step = event.shiftKey ? 10 : 1
+        setCursorIndex((index) => Math.max(0, Math.min(RESOLUTION - 1, index + (event.key === 'ArrowLeft' ? -step : step))))
+      }}
+    />
+    <div className="spin-readout" id="spin-readout"><span>x = {cursorX.toFixed(2)} µm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
+  </>
+}

@@ -3,32 +3,20 @@ import {
   flattenGds,
   parseGds,
 } from '../../lib/gds.js'
-
-type ExpansionLimits = {
-  maxShapes: number
-  maxInstances: number
-  maxPoints: number
-}
-
-type WorkerRequest =
-  | {
-      type: 'parse'
-      requestId: string
-      buffer: ArrayBuffer
-      limits: ExpansionLimits
-    }
-  | {
-      type: 'flatten'
-      requestId: string
-      importId: string
-      topCell: string
-      limits: ExpansionLimits
-    }
+import type {
+  ExpansionLimits,
+  GdsWorkerRequest,
+  GdsWorkerResponse,
+} from './gdsProtocol'
 
 const parsedImports = new Map<string, ReturnType<typeof parseGds>>()
 
+function respond(message: GdsWorkerResponse) {
+  self.postMessage(message)
+}
+
 function progress(requestId: string, stage: string, completed: number) {
-  self.postMessage({ type: 'progress', requestId, stage, completed })
+  respond({ type: 'progress', requestId, stage, completed })
 }
 
 function flattenImport(
@@ -38,23 +26,26 @@ function flattenImport(
   topCell: string,
   limits: ExpansionLimits,
 ) {
-  progress(requestId, 'Flattening hierarchy', 0.65)
-  const shapes = flattenGds(model, topCell, limits)
-  const bounds = boundsOf(shapes)
-  progress(requestId, 'Preparing section', 0.95)
-  self.postMessage({
-    type: 'complete',
-    requestId,
-    importId,
-    topCell,
-    shapes,
-    bounds,
-    compatibilityWarnings: model.compatibility.warnings,
-  })
-  parsedImports.delete(importId)
+  try {
+    progress(requestId, 'Flattening hierarchy', 0.65)
+    const shapes = flattenGds(model, topCell, limits)
+    const bounds = boundsOf(shapes)
+    progress(requestId, 'Preparing section', 0.95)
+    respond({
+      type: 'complete',
+      requestId,
+      importId,
+      topCell,
+      shapes,
+      bounds,
+      compatibilityWarnings: model.compatibility.warnings,
+    })
+  } finally {
+    parsedImports.delete(importId)
+  }
 }
 
-self.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
+self.addEventListener('message', (event: MessageEvent<GdsWorkerRequest>) => {
   const request = event.data
   try {
     if (request.type === 'parse') {
@@ -64,7 +55,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
       parsedImports.set(importId, model)
       progress(request.requestId, 'Inspecting top cells', 0.5)
       if (model.topCells.length > 1) {
-        self.postMessage({
+        respond({
           type: 'selection-required',
           requestId: request.requestId,
           importId,
@@ -98,7 +89,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
       request.limits,
     )
   } catch (error) {
-    self.postMessage({
+    respond({
       type: 'error',
       requestId: request.requestId,
       message: error instanceof Error ? error.message : 'The GDS import failed.',

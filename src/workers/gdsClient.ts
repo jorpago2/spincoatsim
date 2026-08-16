@@ -1,27 +1,19 @@
-import type { flattenGds } from '../../lib/gds.js'
+import type {
+  ExpansionLimits,
+  GdsImportResult,
+  GdsProgress,
+  GdsWorkerRequestPayload,
+  GdsWorkerResponse,
+} from './gdsProtocol'
 
-export type GdsShape = ReturnType<typeof flattenGds>[number]
-export type ExpansionLimits = {
-  maxShapes: number
-  maxInstances: number
-  maxPoints: number
-}
-export type GdsProgress = { stage: string; completed: number }
-export type GdsSelectionResult = {
-  kind: 'selection-required'
-  importId: string
-  topCells: string[]
-  compatibilityWarnings: string[]
-}
-export type GdsCompleteResult = {
-  kind: 'complete'
-  importId: string
-  topCell: string
-  shapes: GdsShape[]
-  bounds: { minX: number; maxX: number; minY: number; maxY: number; width: number; height: number }
-  compatibilityWarnings: string[]
-}
-export type GdsImportResult = GdsSelectionResult | GdsCompleteResult
+export type {
+  ExpansionLimits,
+  GdsCompleteResult,
+  GdsImportResult,
+  GdsProgress,
+  GdsSelectionResult,
+  GdsShape,
+} from './gdsProtocol'
 
 type PendingRequest = {
   resolve: (value: GdsImportResult) => void
@@ -39,33 +31,40 @@ function activeWorker() {
   worker = new Worker(new URL('./gds.worker.ts', import.meta.url), {
     type: 'module',
   })
-  worker.addEventListener('message', (event) => {
+  worker.addEventListener('message', (event: MessageEvent<GdsWorkerResponse>) => {
     if (currentGeneration !== generation) return
-    const message = event.data as {
-      type: 'progress' | 'selection-required' | 'complete' | 'error'
-      requestId: string
-      stage?: string
-      completed?: number
-      message?: string
-    } & Record<string, unknown>
+    const message = event.data
     const request = pending.get(message.requestId)
     if (!request) return
     if (message.type === 'progress') {
       request.onProgress?.({
-        stage: message.stage ?? 'Processing GDS',
-        completed: message.completed ?? 0,
+        stage: message.stage,
+        completed: message.completed,
       })
       return
     }
     pending.delete(message.requestId)
     if (message.type === 'error') {
-      request.reject(new Error(message.message ?? 'The GDS import failed.'))
+      request.reject(new Error(message.message))
+      return
+    }
+    if (message.type === 'selection-required') {
+      request.resolve({
+        kind: message.type,
+        importId: message.importId,
+        topCells: message.topCells,
+        compatibilityWarnings: message.compatibilityWarnings,
+      })
       return
     }
     request.resolve({
-      ...message,
       kind: message.type,
-    } as unknown as GdsImportResult)
+      importId: message.importId,
+      topCell: message.topCell,
+      shapes: message.shapes,
+      bounds: message.bounds,
+      compatibilityWarnings: message.compatibilityWarnings,
+    })
   })
   worker.addEventListener('error', (event) => {
     if (currentGeneration !== generation) return
@@ -79,7 +78,7 @@ function activeWorker() {
 }
 
 function requestGds(
-  message: Record<string, unknown>,
+  message: GdsWorkerRequestPayload,
   transfer: Transferable[],
   onProgress?: (progress: GdsProgress) => void,
 ) {

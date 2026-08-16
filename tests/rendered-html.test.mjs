@@ -5,6 +5,11 @@ import test from "node:test";
 test("exports the SpinCoatSim application", async () => {
   const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
   const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const canvas = await readFile(new URL("../src/components/SpinCoatCanvas.tsx", import.meta.url), "utf8");
+  const main = await readFile(new URL("../src/main.tsx", import.meta.url), "utf8");
+  const server = await readFile(new URL("../src/entry-server.tsx", import.meta.url), "utf8");
+  const gdsClient = await readFile(new URL("../src/workers/gdsClient.ts", import.meta.url), "utf8");
+  const gdsProtocol = await readFile(new URL("../src/workers/gdsProtocol.ts", import.meta.url), "utf8");
   const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
   const tokens = await readFile(new URL("../tokens.css", import.meta.url), "utf8");
   const favicon = await readFile(new URL("../public/favicon.svg", import.meta.url), "utf8");
@@ -18,6 +23,7 @@ test("exports the SpinCoatSim application", async () => {
   }
   assert.match(html, /aria-label="Configuration tools"/);
   assert.match(html, /aria-expanded="false"/);
+  assert.match(html, /id="spin-tool-panel"/);
   for (const tool of ["Input", "Process stack", "Film model"]) assert.match(html, new RegExp(`>${tool}<`));
   assert.match(html, /No coating profile yet/);
   assert.match(html, /Load example/);
@@ -37,17 +43,18 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /useState<GdsShape\[]>\(\[\]\)/);
   assert.match(source, /<ScientificToolRail/);
   assert.match(source, /className="spin-navigation"/);
-  assert.match(source, /activeId=\{activePanel \?\? "input"\}/);
+  assert.match(source, /activeId=\{activePanel\}/);
   assert.match(source, /expandedId=\{activePanel\}/);
+  assert.match(source, /registerItemRef=/);
   assert.match(source, /useScientificResultTransition\(\{/);
   assert.match(source, /resultRef: resultHeading/);
-  assert.match(source, /aria-describedby="spin-readout"/);
-  assert.match(source, /event\.key === "ArrowLeft"/);
+  assert.match(canvas, /aria-describedby="spin-readout"/);
+  assert.match(canvas, /event\.key !== 'ArrowLeft'/);
   assert.match(styles, /macrostructure: Workbench/);
   const carbon = await readFile(new URL("../src/carbon.scss", import.meta.url), "utf8");
   assert.match(carbon, /@use ["']@carbon\/react["']/);
   assert.doesNotMatch(styles, /tailwindcss|@theme inline/);
-  for (const component of ["Grid", "NumberInput", "Select", "ComboBox", "Accordion", "FileUploaderButton", "ExportReceipt", "ScientificEmptyState", "ScientificStatusBar"]) {
+  for (const component of ["Grid", "NumberInput", "Select", "ComboBox", "Accordion", "FileUploaderButton", "InlineNotification", "Modal", "ProgressBar", "Slider", "ExportReceipt", "ScientificEmptyState", "ScientificStatusBar"]) {
     assert.match(source, new RegExp(`<${component}`));
   }
   assert.match(source, /restoreCustomCalibration/);
@@ -59,19 +66,29 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /provenance: parameterProvenance/);
   assert.match(source, /fileName=\{exportNotice\.fileName\}/);
   assert.match(source, /<ScientificAppShell/);
+  assert.match(source, /<SpinCoatCanvas/);
   assert.doesNotMatch(source, /miniPreview|mini-preview/);
+  assert.doesNotMatch(source, /document\.(?:addEventListener|getElementById|querySelector)/);
+  assert.doesNotMatch(canvas, /addEventListener\(/);
+  assert.match(main, /hydrateRoot/);
+  assert.match(main, /createRoot/);
+  assert.match(server, /<ScientificUiProvider><App \/><\/ScientificUiProvider>/);
+  assert.match(gdsProtocol, /type GdsWorkerResponse/);
+  assert.doesNotMatch(gdsClient, /Record<string, unknown>|as unknown as/);
   assert.match(styles, /overflow-x: clip/);
   assert.doesNotMatch(styles, /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|100vw|transition:\s*all/i);
-  assert.match(tokens, /--color-accent: oklch\(/);
   assert.match(tokens, /--color-plot-background:\s*var\(--color-viewer-deep\)/);
   assert.match(tokens, /--color-plot-cursor:\s*var\(--color-viewer-grid\)/);
   assert.doesNotMatch(tokens, /--cds-background\s*:/);
-  assert.match(source, /var\(--color-plot-film\)/);
-  assert.doesNotMatch(source, /#ff5a1f/);
+  assert.match(canvas, /--color-plot-film/);
+  assert.doesNotMatch(`${source}\n${canvas}`, /#ff5a1f/);
   assert.match(favicon, /#75b9c8/);
   assert.match(favicon, /#f0b84a/);
   assert.match(favicon, /#eb3f00/);
   for (const legacyToken of ["font-display", "radius-input", "radius-card", "radius-pill", "shadow-raised", "ease-out", "ease-in", "ease-in-out", "dur-micro", "dur-short", "dur-long", "space-2xl", "space-3xl", "text-2xl", "text-display"]) {
     assert.doesNotMatch(tokens, new RegExp(`--${legacyToken}:`));
+  }
+  for (const replacedSurfaceToken of ["color-paper", "color-surface", "color-ink", "color-accent", "color-success", "color-danger", "color-warning", "color-overlay"]) {
+    assert.doesNotMatch(tokens, new RegExp(`--${replacedSurfaceToken}(?:-|:)`));
   }
 });
