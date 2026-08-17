@@ -166,7 +166,7 @@ export function SpinCoatCanvas({
       ref={canvasRef}
       width={1200}
       height={650}
-      className="spin-canvas"
+      className="spin-canvas scientific-render-surface--dark"
       aria-label="Simulated material stack cross-section and spin-coated film"
       aria-describedby="spin-readout"
       tabIndex={0}

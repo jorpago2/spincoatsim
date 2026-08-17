@@ -1,6 +1,5 @@
 /* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: Carbon g10 · designed-as-app */
 :root {
-  --color-viewer: oklch(16% 0.016 135);
   --color-viewer-deep: oklch(10% 0.018 145);
   --color-viewer-raised: oklch(22% 0.014 125);
   --color-viewer-muted: oklch(68% 0.018 95);

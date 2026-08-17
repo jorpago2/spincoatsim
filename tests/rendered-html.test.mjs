@@ -21,10 +21,10 @@ test("exports the SpinCoatSim application", async () => {
   for (const metadata of ["theme-color", "canonical", "og:site_name", "og:url", "og:image:alt", "twitter:title", "twitter:description", "twitter:image:alt"]) {
     assert.match(html, new RegExp(metadata));
   }
-  assert.match(html, /aria-label="Configuration tools"/);
+  assert.match(html, /aria-label="Spin coating workflow"/);
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /id="spin-tool-panel"/);
-  for (const tool of ["Input", "Process stack", "Film model"]) assert.match(html, new RegExp(`>${tool}<`));
+  for (const tool of ["Input", "Process stack", "Film model", "Results"]) assert.match(html, new RegExp(`>${tool}<`));
   assert.match(html, /No coating profile yet/);
   assert.match(html, /Load example/);
   assert.match(html, /href="#spin-workspace"/);
@@ -43,12 +43,16 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /useState<GdsShape\[]>\(\[\]\)/);
   assert.match(source, /<ScientificToolRail/);
   assert.match(source, /className="spin-navigation"/);
-  assert.match(source, /activeId=\{activePanel\}/);
+  assert.match(source, /primaryAction=\{<ScientificHeaderAction kind="primary" label="Load example"/);
+  assert.equal(source.match(/onClick=\{loadDemo\}/g)?.length, 1);
+  assert.match(source, /activeId=\{activePanel \?\? "results"\}/);
   assert.match(source, /expandedId=\{activePanel\}/);
   assert.match(source, /registerItemRef=/);
+  assert.doesNotMatch(styles, /--scientific-ui-rail-inline-size/);
   assert.match(source, /useScientificResultTransition\(\{/);
   assert.match(source, /resultRef: resultHeading/);
   assert.match(canvas, /aria-describedby="spin-readout"/);
+  assert.match(canvas, /scientific-render-surface--dark/);
   assert.match(canvas, /event\.key !== 'ArrowLeft'/);
   assert.match(styles, /macrostructure: Workbench/);
   const carbon = await readFile(new URL("../src/carbon.scss", import.meta.url), "utf8");
@@ -78,6 +82,7 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(styles, /overflow-x: clip/);
   assert.doesNotMatch(styles, /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|100vw|transition:\s*all/i);
   assert.match(tokens, /--color-plot-background:\s*var\(--color-viewer-deep\)/);
+  assert.doesNotMatch(tokens, /--color-viewer:/);
   assert.match(tokens, /--color-plot-cursor:\s*var\(--color-viewer-grid\)/);
   assert.doesNotMatch(tokens, /--cds-background\s*:/);
   assert.match(canvas, /--color-plot-film/);

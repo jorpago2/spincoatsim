@@ -17,12 +17,13 @@ import {
   ProgressBar,
   Select,
   SelectItem,
+  SkipToContent,
   Slider,
   Tag,
   TextInput,
   Tile,
 } from "@carbon/react";
-import { Add, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
+import { Add, ChartLine, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
 import { ExportReceipt, ScientificAppShell, ScientificAutosaveStatus, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificOutcomeSummary, ScientificRecoveryNotice, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificAutosave, useScientificResultTransition } from "@jorpago2/scientific-ui";
 import { SpinCoatCanvas } from "./components/SpinCoatCanvas";
 import {
@@ -126,6 +127,7 @@ function saveBlob(blob: Blob, name: string) {
 
 export default function SpinCoatPage() {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const workspace = useRef<HTMLElement>(null);
   const resultHeading = useRef<HTMLHeadingElement>(null);
   const [shapes, setShapes] = useState<GdsShape[]>([]);
   const [fileName, setFileName] = useState("");
@@ -488,7 +490,7 @@ export default function SpinCoatPage() {
       panelOpen={Boolean(activePanel)}
       header={<ScientificHeader
           skipLink={<>
-            <a className="skip-link" href="#spin-workspace">Skip to coating workspace</a>
+            <SkipToContent href="#spin-workspace">Skip to coating workspace</SkipToContent>
             <h1 className="visually-hidden">SpinCoatSim spin-coating cross-section simulator</h1>
           </>}
           aria-label="SpinCoatSim"
@@ -504,15 +506,21 @@ export default function SpinCoatPage() {
             summary: "Load a GDS section, define the existing stack, configure the coating calibration, then inspect and export the predicted profile.",
             shortcuts: [{ keys: ["Esc"], description: "Close the active panel" }],
           }}
-          secondaryActions={<>
-            <ScientificHeaderAction className="spin-header-example" label="Load example from header" onClick={loadDemo}><Document size={20} aria-hidden={true} /></ScientificHeaderAction>
-            <Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>
-          </>}
+          primaryAction={<ScientificHeaderAction kind="primary" label="Load example" onClick={loadDemo}><Document size={20} aria-hidden={true} /></ScientificHeaderAction>}
+          secondaryActions={<Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>}
         />}
-      navigation={<ScientificToolRail className="spin-navigation" label="Configuration tools" activeId={activePanel} expandedId={activePanel} onChange={(id) => setActivePanel(id as ToolPanel | null)} registerItemRef={(id, node) => { toolTriggerRefs.current[id as ToolPanel] = node; }} items={[
+      navigation={<ScientificToolRail className="spin-navigation" label="Spin coating workflow" activeId={activePanel ?? "results"} expandedId={activePanel} onChange={(id) => {
+        if (id === "results") {
+          setActivePanel(null);
+          requestAnimationFrame(() => workspace.current?.focus());
+          return;
+        }
+        setActivePanel(id as ToolPanel | null);
+      }} registerItemRef={(id, node) => { if (id !== "results") toolTriggerRefs.current[id as ToolPanel] = node; }} items={[
         { id: "input", triggerId: "spin-nav-input", label: "Input", icon: <Document size={20} />, controlsId: "spin-tool-panel" },
         { id: "stack", triggerId: "spin-nav-stack", label: "Process stack", icon: <Layers size={20} />, controlsId: "spin-tool-panel" },
         { id: "coating", triggerId: "spin-nav-coating", label: "Film model", icon: <Chemistry size={20} />, controlsId: "spin-tool-panel" },
+        { id: "results", triggerId: "spin-nav-results", label: "Results", icon: <ChartLine size={20} />, controlsId: "spin-workspace" },
       ]} />}
       panel={<ScientificTaskPanel
           className="spin-controls"
@@ -531,7 +539,6 @@ export default function SpinCoatPage() {
               <ProgressBar label={gdsProgress.stage} helperText={`${Math.round(gdsProgress.completed * 100)}% complete`} max={100} value={gdsProgress.completed * 100} />
               <Button className="spin-import-cancel" kind="danger--tertiary" size="sm" onClick={cancelActiveGdsImport}>Cancel import</Button>
             </div>}
-            <Button className="spin-example" kind="secondary" size="md" aria-label="Load example from Input panel" onClick={loadDemo}>Load example</Button>
             {error && <InlineNotification className="spin-notification" lowContrast kind="error" title="GDS input" subtitle={error} hideCloseButton />}
             <Grid condensed className="spin-fields">
               <Column sm={4} md={4} lg={8}><NumberField id="section-y" label="Section Y" unit="µm" value={sliceY} min={-1e6} max={1e6} step={0.1} onValue={setSliceY} /></Column>
@@ -624,7 +631,7 @@ export default function SpinCoatPage() {
         <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
       </dl></>} />}
     >
-        <section className="spin-preview scientific-stage" id="spin-workspace" tabIndex={-1} aria-label="Coating results">
+        <section ref={workspace} className="spin-preview scientific-stage" id="spin-workspace" tabIndex={-1} aria-label="Coating results">
           {section && <ScientificOutcomeSummary
             className="spin-outcome"
             title={fileName || "Coating profile"}
@@ -665,7 +672,7 @@ export default function SpinCoatPage() {
           </div>
 
           <Accordion align="start" size="md" className="spin-validity"><AccordionItem title="Model boundary"><p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>{section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}</AccordionItem></Accordion>
-          </> : <ScientificEmptyState className="spin-empty-state" title="No coating profile yet" description="Load a GDS file or use the example to calculate and display the cross-section." action={<Button kind="primary" size="md" aria-label="Load example from empty results" onClick={loadDemo}>Load example</Button>} />}
+          </> : <ScientificEmptyState className="spin-empty-state" title="No coating profile yet" description="Use Load example in the header or load a local GDS file from Input to calculate and display the cross-section." />}
         </section>
     </ScientificAppShell>
     <Modal
