@@ -43,8 +43,9 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /useState<GdsShape\[]>\(\[\]\)/);
   assert.match(source, /<ScientificToolRail/);
   assert.match(source, /className="spin-navigation"/);
-  assert.match(source, /primaryAction=\{<ScientificHeaderAction kind="primary" label="Load example"/);
-  assert.equal(source.match(/onClick=\{loadDemo\}/g)?.length, 2);
+  assert.match(source, /primaryAction=\{<ScientificHeaderAction kind="primary" label=\{shapes\.length \? "Run profile" : "Load example"\}/);
+  assert.match(source, /onClick=\{shapes\.length \? runProfile : loadDemo\}/);
+  assert.equal(source.match(/onClick=\{loadDemo\}/g)?.length, 1);
   assert.match(source, /activeId=\{activePanel \?\? "results"\}/);
   assert.match(source, /expandedId=\{activePanel\}/);
   assert.match(source, /registerItemRef=/);
@@ -63,11 +64,12 @@ test("exports the SpinCoatSim application", async () => {
   }
   assert.match(source, /restoreCustomCalibration/);
   assert.match(source, /<ScientificOutcomeSummary\b/);
-  assert.match(source, /Inputs and profile up to date/);
+  assert.match(source, /Profile up to date/);
   assert.match(source, /importGdsFile/);
   assert.match(source, /Calibration law/);
   assert.match(source, /Reference process comparison/);
-  assert.match(source, /provenance: parameterProvenance/);
+  assert.match(source, /parameterProvenance: \{ \.\.\.parameterProvenance \}/);
+  assert.match(source, /provenance: runConfig\.parameterProvenance/);
   assert.match(source, /fileName=\{exportNotice\.fileName\}/);
   assert.match(source, /<ScientificAppShell/);
   assert.match(source, /<SpinCoatCanvas/);

@@ -14,6 +14,8 @@ import {
   Link,
   Modal,
   NumberInput,
+  ProgressIndicator,
+  ProgressStep,
   ProgressBar,
   Select,
   SelectItem,
@@ -23,7 +25,7 @@ import {
   TextInput,
   Tile,
 } from "@carbon/react";
-import { Add, ChartLine, Chemistry, Document, Layers, TrashCan } from "@carbon/react/icons";
+import { Add, ChartLine, Chemistry, Document, Layers, Play, TrashCan } from "@carbon/react/icons";
 import { ExportReceipt, ScientificAppShell, ScientificAutosaveStatus, ScientificEmptyState, ScientificHeader, ScientificHeaderAction, ScientificOutcomeSummary, ScientificRecoveryNotice, ScientificStatusBar, ScientificTaskPanel, ScientificToolRail, ScientificValidationSummary, useScientificAutosave, useScientificResultTransition } from "@jorpago2/scientific-ui";
 import { SpinCoatCanvas } from "./components/SpinCoatCanvas";
 import {
@@ -67,6 +69,34 @@ const INITIAL_CUSTOM_CALIBRATION: CalibrationState = {
 };
 
 type SavedSpinSession = SpinSession & { customCalibration?: CalibrationState };
+
+type SpinRunConfig = {
+  fingerprint: string;
+  shapes: GdsShape[];
+  fileName: string;
+  topCell: string;
+  sourceSha256: string;
+  compatibilityWarnings: string[];
+  sliceY: number;
+  centreX: number;
+  viewWidth: number;
+  substrateThickness: number;
+  layers: StackLayer[];
+  coatingLibrary: "photoresist" | "oxide";
+  coatingPresetId: string;
+  coatingPresetName: string | null;
+  coatingPresetSourceUrl: string | null;
+  referenceThickness: number;
+  referenceRpm: number;
+  rpm: number;
+  exponent: number;
+  shrinkage: number;
+  parameterProvenance: Record<string, Provenance>;
+  dryThickness: number;
+  finalThickness: number;
+  levelingStrength: number;
+  levelingLength: number;
+};
 
 function bounded(value: number, fallback: number, minimum: number, maximum: number) {
   return Number.isFinite(value) ? Math.max(minimum, Math.min(maximum, value)) : fallback;
@@ -116,6 +146,18 @@ function ResultMetrics({ dryThickness, section }: { dryThickness: number; sectio
   </dl>;
 }
 
+function ProcessTimeline({ rpm, finalThickness, stale }: { rpm: number; finalThickness: number; stale: boolean }) {
+  return <section className="spin-process-timeline" aria-labelledby="spin-process-title">
+    <h2 id="spin-process-title">Process timeline</h2>
+    <ol>
+      <li><strong>1 · Deposit</strong><span>Existing stack and selected section</span></li>
+      <li><strong>2 · Spin</strong><span>{rpm.toLocaleString()} rpm empirical thickness law</span></li>
+      <li className={stale ? "is-stale" : ""}><strong>3 · Final profile</strong><span>{finalThickness.toFixed(1)} nm final dry film{stale ? " · rerun required" : ""}</span></li>
+    </ol>
+    <p>The timeline describes the end-of-process geometric model; it does not solve transient fluid flow, evaporation or chemistry.</p>
+  </section>;
+}
+
 function saveBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -160,12 +202,16 @@ export default function SpinCoatPage() {
   const [error, setError] = useState("");
   const [activePanel, setActivePanel] = useState<ToolPanel | null>(null);
   const [resultCompletionKey, setResultCompletionKey] = useState(0);
+  const [runConfig, setRunConfig] = useState<SpinRunConfig | null>(null);
+  const [processState, setProcessState] = useState<"needs-input" | "running" | "completed">("needs-input");
   const [gdsProgress, setGdsProgress] = useState<GdsProgress | null>(null);
   const [exportNotice, setExportNotice] = useState<ExportNotice | null>(null);
   const [customCalibration, setCustomCalibration] = useState<CalibrationState>({ ...INITIAL_CUSTOM_CALIBRATION });
   const toolTriggerRefs = useRef<Record<ToolPanel, HTMLButtonElement | null>>({ input: null, stack: null, coating: null });
   const returnFocusTo = useRef<ToolPanel | null>(null);
   const importGeneration = useRef(0);
+  const autoRunAfterLoad = useRef(false);
+  const runProfileRef = useRef<() => void>(() => undefined);
 
   const closePanel = useCallback(() => {
     if (activePanel) returnFocusTo.current = activePanel;
@@ -179,6 +225,12 @@ export default function SpinCoatPage() {
   }, [activePanel]);
 
   useEffect(() => () => cancelGdsImport(), []);
+
+  useEffect(() => {
+    if (!autoRunAfterLoad.current || !shapes.length) return;
+    autoRunAfterLoad.current = false;
+    runProfileRef.current();
+  }, [centreX, fileName, shapes, sliceY, viewWidth]);
 
   const availableLayers = useMemo(() => [...new Set(shapes.map((shape) => shape.layer))].sort((a, b) => a - b), [shapes]);
   const photoresistPreset = coatingLibrary === "photoresist" ? PHOTORESIST_PRESETS.find((preset) => preset.id === coatingPresetId) : undefined;
@@ -213,7 +265,6 @@ export default function SpinCoatPage() {
     return [selectedReference, ...nearby.slice(0, 2)];
   }, [coatingReferences, selectedReference]);
   const xMin = centreX - viewWidth / 2;
-  const xMax = centreX + viewWidth / 2;
   const dryThickness = calibratedThickness(referenceThickness, referenceRpm, rpm, exponent);
   const finalThickness = dryThickness * (1 - shrinkage / 100);
   const parameterProvenance = {
@@ -225,23 +276,45 @@ export default function SpinCoatPage() {
     levelingStrengthPercent: levelingStrength === 65 ? "Model default" : "Edited",
     levelingLengthMicrometers: levelingLength === 8 ? "Model default" : "Edited",
   } satisfies Record<string, Provenance>;
-  const hasReferenceEdits = Boolean(coatingPreset) && Object.values(parameterProvenance).includes("Edited");
+
+  const currentFingerprint = useMemo(() => JSON.stringify({
+    fileName,
+    topCell,
+    sourceSha256,
+    shapeCount: shapes.length,
+    sliceY,
+    centreX,
+    viewWidth,
+    substrateThickness,
+    layers,
+    coatingLibrary,
+    coatingPresetId,
+    referenceThickness,
+    referenceRpm,
+    rpm,
+    exponent,
+    shrinkage,
+    finalThickness,
+    levelingStrength,
+    levelingLength,
+  }), [centreX, coatingLibrary, coatingPresetId, exponent, fileName, finalThickness, layers, levelingLength, levelingStrength, referenceRpm, referenceThickness, rpm, shapes.length, shrinkage, sliceY, sourceSha256, substrateThickness, topCell, viewWidth]);
+  const resultStale = Boolean(runConfig && runConfig.fingerprint !== currentFingerprint);
 
   const sectionComputation = useMemo<{ result: SectionResult | null; status: SectionGeometryStatus | null }>(() => {
-    if (!shapes.length) return { result: null, status: null };
-    const slices = layers.map((layer) => polygonIntervalsAtY(shapes, layer.gdsLayer, sliceY));
+    if (!runConfig?.shapes.length) return { result: null, status: null };
+    const slices = runConfig.layers.map((layer) => polygonIntervalsAtY(runConfig.shapes, layer.gdsLayer, runConfig.sliceY));
     const intervals = slices.flatMap((slice) => slice.intervals);
     const status: SectionGeometryStatus = intervals.length > 0
       ? "intersects"
       : slices.some((slice) => slice.touchesBoundary) ? "boundary-touch" : "outside";
     if (status !== "intersects") return { result: null, status };
-    const preparedLayers = layers.map((layer, index) => ({
+    const preparedLayers = runConfig.layers.map((layer, index) => ({
       ...layer,
-      mask: sampleIntervals(slices[index].intervals, xMin, xMax, RESOLUTION),
+      mask: sampleIntervals(slices[index].intervals, runConfig.centreX - runConfig.viewWidth / 2, runConfig.centreX + runConfig.viewWidth / 2, RESOLUTION),
     }));
     const columns = buildMaterialColumns({
       count: RESOLUTION,
-      substrate: { name: "Substrate", color: "#5c6570", thicknessNm: substrateThickness },
+      substrate: { name: "Substrate", color: "#5c6570", thicknessNm: runConfig.substrateThickness },
       layers: preparedLayers,
     });
     return {
@@ -253,21 +326,39 @@ export default function SpinCoatPage() {
           coveredWidthMicrometers: intervals.reduce((sum, [start, end]) => sum + end - start, 0),
         },
         columns,
-        film: buildSpinFilm(columns, finalThickness, levelingStrength / 100, levelingLength / (viewWidth / RESOLUTION)),
+        film: buildSpinFilm(columns, runConfig.finalThickness, runConfig.levelingStrength / 100, runConfig.levelingLength / (runConfig.viewWidth / RESOLUTION)),
         ignoredPaths: slices.reduce((sum, slice) => sum + slice.ignoredPaths, 0),
       },
     };
-  }, [shapes, layers, sliceY, xMin, xMax, substrateThickness, finalThickness, levelingStrength, levelingLength, viewWidth]);
-  const section = sectionComputation.result;
+  }, [runConfig]);
+  const committedSection = sectionComputation.result;
   const geometryStatus = sectionComputation.status;
+  const resultXMin = runConfig ? runConfig.centreX - runConfig.viewWidth / 2 : xMin;
+  const resultViewWidth = runConfig?.viewWidth ?? viewWidth;
+  const resultSliceY = runConfig?.sliceY ?? sliceY;
   const geometryMessage = geometryStatus === "boundary-touch"
     ? "The selected section only touches the imported geometry boundary; choose a Y value that crosses a positive-width polygon interval."
     : geometryStatus === "outside"
       ? "The selected section is outside the imported polygon geometry; no coating profile is generated or exportable."
       : undefined;
+  const currentGeometryStatus = useMemo<SectionGeometryStatus | null>(() => {
+    if (!shapes.length) return null;
+    const slices = layers.map((layer) => polygonIntervalsAtY(shapes, layer.gdsLayer, sliceY));
+    const intervals = slices.flatMap((slice) => slice.intervals);
+    return intervals.length > 0 ? "intersects" : slices.some((slice) => slice.touchesBoundary) ? "boundary-touch" : "outside";
+  }, [layers, shapes, sliceY]);
+  const currentGeometryMessage = currentGeometryStatus === "boundary-touch"
+    ? "The selected section only touches the imported geometry boundary; choose a Y value that crosses a positive-width polygon interval."
+    : currentGeometryStatus === "outside"
+      ? "The selected section is outside the imported polygon geometry; run again after choosing a Y value that crosses the layout."
+      : undefined;
+  // A result for a previous, valid section must not remain the apparent result
+  // while the current section is outside the imported geometry.
+  const section = currentGeometryMessage ? null : committedSection;
+  const activeGeometryMessage = currentGeometryMessage ?? geometryMessage;
 
   useScientificResultTransition({
-    state: section ? "up-to-date" : "needs-input",
+    state: section && resultStale ? "modified" : section ? "up-to-date" : activeGeometryMessage ? "failed" : processState === "running" ? "running" : "needs-input",
     resultRef: resultHeading,
     completionKey: resultCompletionKey,
     onReveal: () => setActivePanel(null),
@@ -318,7 +409,9 @@ export default function SpinCoatPage() {
       const firstLayer = result.shapes[0].layer;
       setLayers((current) => current.map((layer) => ({ ...layer, gdsLayer: firstLayer })));
       setError("");
+      setProcessState("needs-input");
       setResultCompletionKey((current) => current + 1);
+      autoRunAfterLoad.current = true;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The GDS could not be read.");
     }
@@ -367,8 +460,55 @@ export default function SpinCoatPage() {
     setCentreX(0);
     setViewWidth(100);
     setError("");
+    setProcessState("needs-input");
     setResultCompletionKey((current) => current + 1);
+    autoRunAfterLoad.current = true;
   }
+
+  function runProfile() {
+    if (!shapes.length) {
+      setError("Load the example or a GDS file before running the coating profile.");
+      setActivePanel("input");
+      return;
+    }
+    setError("");
+    setProcessState("running");
+    const snapshot: SpinRunConfig = {
+      fingerprint: currentFingerprint,
+      shapes,
+      fileName,
+      topCell,
+      sourceSha256,
+      compatibilityWarnings: [...compatibilityWarnings],
+      sliceY,
+      centreX,
+      viewWidth,
+      substrateThickness,
+      layers: layers.map((layer) => ({ ...layer })),
+      coatingLibrary,
+      coatingPresetId,
+      coatingPresetName: coatingPreset?.name ?? null,
+      coatingPresetSourceUrl: coatingPreset?.sourceUrl ?? null,
+      referenceThickness,
+      referenceRpm,
+      rpm,
+      exponent,
+      shrinkage,
+      parameterProvenance: { ...parameterProvenance },
+      dryThickness,
+      finalThickness,
+      levelingStrength,
+      levelingLength,
+    };
+    window.requestAnimationFrame(() => {
+      setRunConfig(snapshot);
+      setProcessState("completed");
+      setResultCompletionKey((current) => current + 1);
+      setActivePanel(null);
+    });
+  }
+
+  runProfileRef.current = runProfile;
 
   function changeLayer(id: number, patch: Partial<StackLayer>) {
     setLayers((current) => current.map((layer) => layer.id === id ? { ...layer, ...patch } : layer));
@@ -422,33 +562,33 @@ export default function SpinCoatPage() {
   }
 
   function exportModel() {
-    if (!section) return;
+    if (!section || !runConfig || resultStale) return;
     const data = {
       schema: "spincoatsim-model/v4",
       engine: { id: "spincoatsim-geometric-film", schemaVersion: 4, sectionResolution: RESOLUTION },
-      source: { fileName, sha256: sourceSha256, topCell, sliceYMicrometers: sliceY, centreXMicrometers: centreX, widthMicrometers: viewWidth, compatibilityWarnings },
-      stack: { substrateThicknessNm: substrateThickness, layers },
-      coating: { referencePreset: coatingPreset ? { category: coatingLibrary, id: coatingPreset.id, name: coatingPreset.name, sourceUrl: coatingPreset.sourceUrl } : null, referenceThicknessNm: referenceThickness, referenceRpm, rpm, exponent, shrinkagePercent: shrinkage, levelingStrengthPercent: levelingStrength, levelingLengthMicrometers: levelingLength, predictedFinalThicknessNm: finalThickness, provenance: parameterProvenance },
-      grid: { xMicrometers: Array.from({ length: RESOLUTION }, (_, index) => xMin + ((index + 0.5) / RESOLUTION) * viewWidth) },
+      source: { fileName: runConfig.fileName, sha256: runConfig.sourceSha256, topCell: runConfig.topCell, sliceYMicrometers: runConfig.sliceY, centreXMicrometers: runConfig.centreX, widthMicrometers: runConfig.viewWidth, compatibilityWarnings: runConfig.compatibilityWarnings },
+      stack: { substrateThicknessNm: runConfig.substrateThickness, layers: runConfig.layers },
+      coating: { referencePreset: runConfig.coatingPresetId ? { category: runConfig.coatingLibrary, id: runConfig.coatingPresetId, name: runConfig.coatingPresetName, sourceUrl: runConfig.coatingPresetSourceUrl } : null, referenceThicknessNm: runConfig.referenceThickness, referenceRpm: runConfig.referenceRpm, rpm: runConfig.rpm, exponent: runConfig.exponent, shrinkagePercent: runConfig.shrinkage, levelingStrengthPercent: runConfig.levelingStrength, levelingLengthMicrometers: runConfig.levelingLength, predictedDryThicknessNm: runConfig.dryThickness, predictedFinalThicknessNm: runConfig.finalThickness, provenance: runConfig.parameterProvenance },
+      grid: { xMicrometers: Array.from({ length: RESOLUTION }, (_, index) => resultXMin + ((index + 0.5) / RESOLUTION) * resultViewWidth) },
       result: { ...section.film, columns: section.columns, ignoredPaths: section.ignoredPaths },
     };
     const exportedFileName = "spincoat-model.json";
     saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), exportedFileName);
-    setExportNotice({ fileName: exportedFileName, context: `${coatingPreset?.name ?? "Custom calibration"} · ${rpm} rpm · ${finalThickness.toFixed(1)} nm predicted` });
+    setExportNotice({ fileName: exportedFileName, context: `${runConfig.coatingPresetName ?? "Custom calibration"} · ${runConfig.rpm} rpm · ${runConfig.finalThickness.toFixed(1)} nm predicted` });
   }
 
   function exportPng() {
-    if (!section) return;
+    if (!section || !runConfig || resultStale) return;
     canvas.current?.toBlob((blob) => {
       if (!blob) return;
       const exportedFileName = "spincoat-section.png";
       saveBlob(blob, exportedFileName);
-      setExportNotice({ fileName: exportedFileName, context: `${coatingPreset?.name ?? "Custom calibration"} · ${rpm} rpm · ${finalThickness.toFixed(1)} nm predicted` });
+      setExportNotice({ fileName: exportedFileName, context: `${runConfig.coatingPresetName ?? "Custom calibration"} · ${runConfig.rpm} rpm · ${runConfig.finalThickness.toFixed(1)} nm predicted` });
     }, "image/png");
   }
 
   const localThickness = section?.film.localThickness[Math.max(0, Math.min(RESOLUTION - 1, cursorIndex))] ?? 0;
-  const cursorX = xMin + ((cursorIndex + 0.5) / RESOLUTION) * viewWidth;
+  const cursorX = resultXMin + ((cursorIndex + 0.5) / RESOLUTION) * resultViewWidth;
   const session = useMemo<SavedSpinSession>(() => ({
     fileName, topCell, sourceSha256, compatibilityWarnings, sliceY, centreX, viewWidth, substrateThickness, layers,
     calibration: { referenceThickness, referenceRpm, rpm, exponent, shrinkage },
@@ -482,6 +622,8 @@ export default function SpinCoatPage() {
     setMetalOxideFamily(saved.metalOxideFamily);
     setLevelingStrength(saved.levelingStrength);
     setLevelingLength(saved.levelingLength);
+    setRunConfig(null);
+    setProcessState("needs-input");
     setError(saved.shapes?.length || !saved.fileName ? "" : `Reimport ${saved.fileName} to restore its GDS geometry; autosave keeps configuration but not large layout data.`);
   }, []);
   const autosave = useScientificAutosave({
@@ -491,6 +633,16 @@ export default function SpinCoatPage() {
     schemaVersion: 1,
     maxBytes: 3_000_000,
   });
+  const profileStatusState = section
+    ? resultStale ? "modified" : "up-to-date"
+    : activeGeometryMessage ? "failed"
+    : processState === "running" ? "running"
+    : "needs-input";
+  const profileStatusLabel = section
+    ? resultStale ? "Profile is stale" : "Profile up to date"
+    : activeGeometryMessage ? "No valid section"
+    : processState === "running" ? "Running coating profile"
+    : "Ready to run";
 
   return (<>
     <ScientificAppShell
@@ -511,15 +663,15 @@ export default function SpinCoatPage() {
           contextLabel="Current model"
           context={fileName || "No GDS loaded"}
           status={{
-            state: section ? "up-to-date" : geometryMessage ? "failed" : "needs-input",
-            label: section ? "Inputs and profile up to date" : geometryMessage ? "Section has no geometry" : "Needs input",
-            detail: geometryMessage,
+            state: profileStatusState,
+            label: profileStatusLabel,
+            detail: activeGeometryMessage ?? (resultStale ? "Inputs changed after the last run; run again before exporting." : undefined),
           }}
           help={{
             summary: "Load a GDS section, define the existing stack, configure the coating calibration, then inspect and export the predicted profile.",
             shortcuts: [{ keys: ["Esc"], description: "Close the active panel" }],
           }}
-          primaryAction={<ScientificHeaderAction kind="primary" label="Load example" onClick={loadDemo}><Document size={20} aria-hidden={true} /></ScientificHeaderAction>}
+          primaryAction={<ScientificHeaderAction kind="primary" label={shapes.length ? "Run profile" : "Load example"} onClick={shapes.length ? runProfile : loadDemo}>{shapes.length ? <Play size={20} aria-hidden={true} /> : <Document size={20} aria-hidden={true} />}</ScientificHeaderAction>}
           secondaryActions={<Link className="suite-link" href="https://jorpago2.github.io/">All tools</Link>}
         />}
       navigation={<ScientificToolRail className="spin-navigation" label="Spin coating workflow" activeId={activePanel ?? "results"} expandedId={activePanel} onChange={(id) => {
@@ -558,12 +710,14 @@ export default function SpinCoatPage() {
               <Column sm={4} md={4} lg={8}><NumberField id="centre-x" label="Centre X" unit="µm" value={centreX} min={-1e6} max={1e6} step={0.1} onValue={setCentreX} /></Column>
               <Column sm={4} md={8} lg={16}><NumberField id="displayed-width" label="Displayed width" unit="µm" value={viewWidth} min={0.1} max={1e6} step={0.1} onValue={(value) => setViewWidth(bounded(value, viewWidth, 0.1, 1e6))} /></Column>
             </Grid>
-            {!geometryMessage && <p className="spin-note">{shapes.length
+            <Button className="spin-run-profile" kind="primary" size="md" renderIcon={Play} disabled={!shapes.length || processState === "running"} onClick={runProfile}>Run coating profile</Button>
+            {!currentGeometryMessage && <p className="spin-note">Run after changing the section, stack or calibration. The displayed result remains marked stale until you run again.</p>}
+            {!currentGeometryMessage && <p className="spin-note">{shapes.length
               ? geometryStatus === "intersects"
                 ? `Cell ${topCell} · layers ${availableLayers.join(", ")}. The section crosses polygon geometry.`
                 : geometryMessage
               : "Load a GDS or the example to reveal the stack and coating result."}</p>}
-            {geometryMessage && <InlineNotification className="spin-notification" lowContrast kind="error" title="No valid section" subtitle={geometryMessage} hideCloseButton />}
+            {currentGeometryMessage && <InlineNotification className="spin-notification" lowContrast kind="error" title="No valid section" subtitle={currentGeometryMessage} hideCloseButton />}
             {compatibilityWarnings.length > 0 && <InlineNotification className="spin-notification" lowContrast kind="warning" title="Import compatibility review" subtitle={compatibilityWarnings.join(" ")} hideCloseButton />}
             <Accordion align="start" size="sm" className="spin-tool-about">
               <AccordionItem title="Capabilities and model scope">
@@ -644,44 +798,54 @@ export default function SpinCoatPage() {
           </section>}
         </ScientificTaskPanel>}
       statusBar={<ScientificStatusBar className="spin-status" status={{
-        state: section ? "up-to-date" : geometryMessage ? "failed" : "needs-input",
-        label: section ? "Inputs and profile up to date" : geometryMessage ? "No valid section" : "Load a GDS file or the example to begin",
-        detail: geometryMessage,
+        state: profileStatusState,
+        label: profileStatusLabel,
+        detail: activeGeometryMessage ?? (resultStale ? "Inputs changed after the last run; run again before exporting." : undefined),
       }} metadata={<><ScientificAutosaveStatus status={autosave.status} savedAt={autosave.lastSavedAt} /><dl>
         <div><dt>Layers</dt><dd>{layers.length}</dd></div>
-        <div><dt>Film</dt><dd>{section ? `${finalThickness.toFixed(1)} nm` : "—"}</dd></div>
+        <div><dt>Film</dt><dd>{section && runConfig ? `${runConfig.finalThickness.toFixed(1)} nm` : "—"}</dd></div>
         <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
       </dl></>} />}
     >
         <section ref={workspace} className="spin-preview scientific-stage" id="spin-workspace" tabIndex={-1} aria-label="Coating results">
           {section && <ScientificOutcomeSummary
             className="spin-outcome"
-            title={fileName || "Coating profile"}
+            title={runConfig?.fileName || fileName || "Coating profile"}
             headingRef={resultHeading}
-            status={{ state: "up-to-date", label: "Profile up to date" }}
-            summary={`${coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " with local edits" : ""}` : "Custom calibration"}. The profile uses the current stack and film model; experimental calibration is still required before process transfer.`}
+            status={{ state: resultStale ? "modified" : "up-to-date", label: resultStale ? "Profile is stale" : "Profile up to date", detail: resultStale ? "Run again before interpreting or exporting." : undefined }}
+            summary={`${runConfig?.coatingPresetName ? `${runConfig.coatingPresetName}${Object.values(runConfig.parameterProvenance).includes("Edited") ? " with local edits" : ""}` : "Custom calibration"}. The profile is an end-of-process geometric model; experimental calibration is still required before process transfer.`}
             actions={[
-              { id: "export-png", label: "Export PNG", emphasis: "primary", onClick: exportPng },
-              { id: "export-json", label: "Export JSON", emphasis: "secondary", collapseAt: "sm", onClick: exportModel },
+              { id: "export-png", label: "Export PNG", emphasis: "primary", disabled: resultStale, disabledReason: "Run the current configuration before exporting.", onClick: exportPng },
+              { id: "export-json", label: "Export JSON", emphasis: "secondary", collapseAt: "sm", disabled: resultStale, disabledReason: "Run the current configuration before exporting.", onClick: exportModel },
             ]}
           />}
-          {section && <ResultMetrics dryThickness={dryThickness} section={section} />}
+          {section && runConfig && <ResultMetrics dryThickness={runConfig.dryThickness} section={section} />}
           {exportNotice && <ExportReceipt className="spin-export-notice" fileName={exportNotice.fileName} format={exportNotice.fileName.endsWith(".png") ? "PNG" : "JSON"} destination={exportNotice.context} onDismiss={() => setExportNotice(null)} />}
           {section ? <>
-          <SpinCoatCanvas canvasRef={canvas} section={section} cursorIndex={cursorIndex} setCursorIndex={setCursorIndex} cursorX={cursorX} localThickness={localThickness} sliceY={sliceY} viewWidth={viewWidth} xMin={xMin} />
+          <SpinCoatCanvas canvasRef={canvas} section={section} cursorIndex={cursorIndex} setCursorIndex={setCursorIndex} cursorX={cursorX} localThickness={localThickness} sliceY={resultSliceY} viewWidth={resultViewWidth} xMin={resultXMin} />
+
+          <div className="spin-workflow-progress" aria-label="Spin coating workflow stages">
+            <ProgressIndicator currentIndex={resultStale ? 1 : 3} spaceEqually>
+              <ProgressStep label="Configure" description="Load geometry and calibration" />
+              <ProgressStep label="Execute" description="Run the profile model" />
+              <ProgressStep label="Results" description="Inspect the final profile" />
+              <ProgressStep label="Validate" description="Review model limits" />
+            </ProgressIndicator>
+          </div>
+          {runConfig && <ProcessTimeline rpm={runConfig.rpm} finalThickness={runConfig.finalThickness} stale={resultStale} />}
 
           <ScientificValidationSummary
             className="spin-validation-summary"
             title="Model checks"
             description="Numerical checks for this reduced coating model. Experimental calibration is still required before process transfer."
             status={{
-              state: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 || !coatingPreset || hasReferenceEdits ? "warning" : "ready",
-              label: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 || !coatingPreset || hasReferenceEdits ? "Review model evidence" : "Model checks passed · experimental validation required",
+              state: section.ignoredPaths > 0 || (runConfig?.compatibilityWarnings.length ?? 0) > 0 || !runConfig?.coatingPresetId || Object.values(runConfig?.parameterProvenance ?? {}).includes("Edited") ? "warning" : "ready",
+              label: section.ignoredPaths > 0 || (runConfig?.compatibilityWarnings.length ?? 0) > 0 || !runConfig?.coatingPresetId || Object.values(runConfig?.parameterProvenance ?? {}).includes("Edited") ? "Review model evidence" : "Model checks passed · experimental validation required",
             }}
             checks={[
               { id: "mass", label: "Coating area", state: "passed", value: `${section.film.meanThicknessNm.toFixed(1)} nm mean · ${section.film.thicknessNonUniformityPercent.toFixed(1)}% non-uniformity`, detail: "The leveling surrogate conserves coating cross-sectional area." },
-              { id: "geometry", label: "Imported geometry", state: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 ? "warning" : "passed", value: section.ignoredPaths > 0 || compatibilityWarnings.length > 0 ? `${section.ignoredPaths + compatibilityWarnings.length} import issue(s)` : "No known omissions", detail: compatibilityWarnings[0] },
-              { id: "reference", label: "Reference traceability", state: coatingPreset && !hasReferenceEdits ? "passed" : "warning", detail: coatingPreset && !hasReferenceEdits ? `${coatingPreset.name}; source and reference point retained.` : "Custom or edited reference; verify against measured thickness." },
+              { id: "geometry", label: "Imported geometry", state: section.ignoredPaths > 0 || (runConfig?.compatibilityWarnings.length ?? 0) > 0 ? "warning" : "passed", value: section.ignoredPaths > 0 || (runConfig?.compatibilityWarnings.length ?? 0) > 0 ? `${section.ignoredPaths + (runConfig?.compatibilityWarnings.length ?? 0)} import issue(s)` : "No known omissions", detail: runConfig?.compatibilityWarnings[0] },
+              { id: "reference", label: "Reference traceability", state: runConfig?.coatingPresetId && !Object.values(runConfig.parameterProvenance).includes("Edited") ? "passed" : "warning", detail: runConfig?.coatingPresetName && !Object.values(runConfig.parameterProvenance).includes("Edited") ? `${runConfig.coatingPresetName}; source and reference point retained.` : "Custom or edited reference; verify against measured thickness." },
               { id: "calibration", label: "Calibration law", state: "warning", detail: "The exponent is a generic single-reference-point model, not a validated multipoint calibration with uncertainty." },
               { id: "scope", label: "Physical scope", state: "warning", detail: "Flow, evaporation, edge bead, dewetting and chemistry are outside this model." },
             ]}
@@ -689,16 +853,16 @@ export default function SpinCoatPage() {
 
           <div className="spin-legend">
             <span><i style={{ background: "#5c6570" }} />Substrate</span>
-            {layers.filter((layer) => layer.mode !== "etch").map((layer) => <span key={layer.id}><i style={{ background: layer.color }} />{layer.name}</span>)}
-            <span><i style={{ background: "var(--color-plot-film)" }} />Spin-coated {metalOxidePreset?.family ?? "film"}</span>
+            {(runConfig?.layers ?? layers).filter((layer) => layer.mode !== "etch").map((layer) => <span key={layer.id}><i style={{ background: layer.color }} />{layer.name}</span>)}
+            <span><i style={{ background: "var(--color-plot-film)" }} />Spin-coated {runConfig ? runConfig.coatingPresetName ?? "film" : metalOxidePreset?.family ?? "film"}</span>
           </div>
 
           <Accordion align="start" size="md" className="spin-validity"><AccordionItem title="Model boundary"><p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>{section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}</AccordionItem></Accordion>
           </> : <ScientificEmptyState
             className="spin-empty-state"
-            title={geometryMessage ? "No coating profile for this section" : "No coating profile yet"}
-            description={geometryMessage ?? "Load the example or choose a local GDS file from Input to calculate and display the cross-section."}
-            action={!geometryMessage ? <Button kind="primary" size="md" renderIcon={Document} onClick={loadDemo}>Load example</Button> : undefined}
+            title={activeGeometryMessage ? "No coating profile for this section" : "No coating profile yet"}
+            description={activeGeometryMessage ?? "Load the example or choose a local GDS file from Input to calculate and display the cross-section."}
+            action={!activeGeometryMessage ? <Button kind="primary" size="md" renderIcon={Document} onClick={loadDemo}>Load example</Button> : undefined}
           />}
         </section>
     </ScientificAppShell>
