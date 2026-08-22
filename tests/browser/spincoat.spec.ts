@@ -100,23 +100,37 @@ test('demo result is responsive, current and explicit about calibration', async 
   page,
 }) => {
   await page.goto('')
-  await page.getByRole('button', { name: /Load example/ }).first().click()
-  await expect(page.getByRole('region', { name: 'Coating results' }).getByText('Inputs and profile up to date', { exact: true })).toBeVisible()
+  const resultRegion = page.getByRole('region', { name: 'Coating results' })
+  await expect(resultRegion.getByRole('button', { name: 'Load example' })).toBeVisible()
+  await resultRegion.getByRole('button', { name: 'Load example' }).click()
+  await expect(resultRegion.getByText('Profile up to date', { exact: true })).toBeVisible()
   await expect(page.getByText('Calibration law', { exact: true })).toBeVisible()
   await expect(page.getByText(/generic single-reference-point model/i)).toBeVisible()
-  const fit = await page.evaluate(() => ({
+  const fit = await page.evaluate(() => {
+    const title = document.querySelector('.scientific-outcome-summary__heading h2')!
+    const status = document.querySelector('.scientific-outcome-summary__heading .scientific-status')!
+    const result = document.querySelector('.spin-preview')!
+    const titleBox = title.getBoundingClientRect()
+    const statusBox = status.getBoundingClientRect()
+    const resultBox = result.getBoundingClientRect()
+    return {
     overflowX:
       document.documentElement.scrollWidth > document.documentElement.clientWidth,
     canvas: document.querySelector('canvas')?.getBoundingClientRect().width ?? 0,
     viewport: window.innerWidth,
     stageOverflow: getComputedStyle(document.querySelector('.scientific-workbench__stage')!).overflowY,
     previewOverflow: getComputedStyle(document.querySelector('.spin-preview')!).overflowY,
-  }))
+      titleLines: Math.round(titleBox.height / Number.parseFloat(getComputedStyle(title).lineHeight)),
+      statusInsideResult: statusBox.right <= resultBox.right + 1,
+    }
+  })
   expect(fit.overflowX).toBe(false)
   expect(fit.canvas).toBeGreaterThan(0)
   expect(fit.canvas).toBeLessThanOrEqual(fit.viewport)
   expect(fit.stageOverflow).toBe('auto')
   expect(fit.previewOverflow).toBe('visible')
+  expect(fit.titleLines).toBe(1)
+  expect(fit.statusInsideResult).toBe(true)
 })
 
 test('a section outside imported geometry blocks the profile and export', async ({ page }) => {
@@ -129,7 +143,8 @@ test('a section outside imported geometry blocks the profile and export', async 
 
   const inputPanel = page.getByRole('complementary', { name: 'GDS section' })
   await expect(inputPanel.getByText('No valid section', { exact: true })).toBeVisible()
-  await expect(inputPanel.locator('p.spin-note')).toContainText('outside the imported polygon geometry')
+  await expect(inputPanel.getByText(/outside the imported polygon geometry/)).toHaveCount(1)
+  await expect(inputPanel.locator('p.spin-note')).toHaveCount(0)
   await inputPanel.getByRole('button', { name: 'Close' }).click()
   await expect(page.getByRole('heading', { name: 'No coating profile for this section' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Export JSON' })).toHaveCount(0)
@@ -199,7 +214,8 @@ test('React owns panel visibility, keyboard focus and Carbon editor state', asyn
 
   await page.getByRole('button', { name: 'Process stack' }).click()
   await page.getByLabel('Operation').last().selectOption('etch')
-  await expect(page.getByLabel('GDS layer').last()).toBeVisible()
+  await expect(page.getByLabel('GDS layer').last()).toBeDisabled()
+  await expect(page.getByLabel('GDS layer').last()).toHaveValue('')
 
   await page.getByRole('button', { name: 'Film model' }).click()
   const leveling = page.getByRole('slider', { name: /Leveling strength/i })
@@ -276,7 +292,7 @@ test('multiple GDS top cells are resolved in a React Carbon modal', async ({ pag
     ),
   ).toEqual([])
 
-  await page.setViewportSize({ width: 320, height: 568 })
+  await page.setViewportSize({ width: 390, height: 844 })
   const modalActions = modal.getByRole('button', {
     name: /Cancel import|Use selected cell/,
   })
@@ -285,11 +301,13 @@ test('multiple GDS top cells are resolved in a React Carbon modal', async ({ pag
       clientHeight: button.clientHeight,
       scrollHeight: button.scrollHeight,
       width: button.getBoundingClientRect().width,
+      backgroundColor: getComputedStyle(button).backgroundColor,
     })),
   )
   expect(actionMetrics).toHaveLength(2)
   expect(actionMetrics.every(({ clientHeight, scrollHeight }) => scrollHeight <= clientHeight)).toBe(true)
-  expect(actionMetrics.every(({ width }) => width >= 300)).toBe(true)
+  expect(actionMetrics.every(({ width }) => width >= 190)).toBe(true)
+  expect(actionMetrics.at(-1)?.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
 
   await page.getByLabel('Top cell').selectOption('CELL_B')
   await page.getByRole('button', { name: 'Use selected cell' }).click()

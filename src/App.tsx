@@ -159,7 +159,6 @@ export default function SpinCoatPage() {
   const [cursorIndex, setCursorIndex] = useState(Math.floor(RESOLUTION / 2));
   const [error, setError] = useState("");
   const [activePanel, setActivePanel] = useState<ToolPanel | null>(null);
-  const [lastUpdated, setLastUpdated] = useState("");
   const [resultCompletionKey, setResultCompletionKey] = useState(0);
   const [gdsProgress, setGdsProgress] = useState<GdsProgress | null>(null);
   const [exportNotice, setExportNotice] = useState<ExportNotice | null>(null);
@@ -273,16 +272,6 @@ export default function SpinCoatPage() {
     completionKey: resultCompletionKey,
     onReveal: () => setActivePanel(null),
   });
-
-  useEffect(() => {
-    if (!section) return;
-    const updateTimer = window.setTimeout(() => {
-      setLastUpdated(new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date()));
-    }, 0);
-    return () => {
-      window.clearTimeout(updateTimer);
-    };
-  }, [section]);
 
   async function loadGds(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -569,11 +558,11 @@ export default function SpinCoatPage() {
               <Column sm={4} md={4} lg={8}><NumberField id="centre-x" label="Centre X" unit="µm" value={centreX} min={-1e6} max={1e6} step={0.1} onValue={setCentreX} /></Column>
               <Column sm={4} md={8} lg={16}><NumberField id="displayed-width" label="Displayed width" unit="µm" value={viewWidth} min={0.1} max={1e6} step={0.1} onValue={(value) => setViewWidth(bounded(value, viewWidth, 0.1, 1e6))} /></Column>
             </Grid>
-            <p className="spin-note">{shapes.length
+            {!geometryMessage && <p className="spin-note">{shapes.length
               ? geometryStatus === "intersects"
                 ? `Cell ${topCell} · layers ${availableLayers.join(", ")}. The section crosses polygon geometry.`
                 : geometryMessage
-              : "Load a GDS or the example to reveal the stack and coating result."}</p>
+              : "Load a GDS or the example to reveal the stack and coating result."}</p>}
             {geometryMessage && <InlineNotification className="spin-notification" lowContrast kind="error" title="No valid section" subtitle={geometryMessage} hideCloseButton />}
             {compatibilityWarnings.length > 0 && <InlineNotification className="spin-notification" lowContrast kind="warning" title="Import compatibility review" subtitle={compatibilityWarnings.join(" ")} hideCloseButton />}
             <Accordion align="start" size="sm" className="spin-tool-about">
@@ -592,7 +581,7 @@ export default function SpinCoatPage() {
                 <Grid condensed className="spin-layer-fields">
                   <Column sm={4} md={8} lg={16}><Select id={`layer-${layer.id}-operation`} labelText="Operation" size="md" value={layer.mode} onChange={(event) => changeLayer(layer.id, { mode: event.target.value as LayerMode })}><SelectItem value="uniform" text="Uniform deposit" /><SelectItem value="patterned" text="Patterned deposit" /><SelectItem value="etch" text="Etch into stack" /></Select></Column>
                   <Column sm={4} md={4} lg={8}><NumberField id={`layer-${layer.id}-thickness`} label={layer.mode === "etch" ? "Depth" : "Thickness"} unit="nm" value={layer.thicknessNm} min={1} max={1e6} onValue={(value) => changeLayer(layer.id, { thicknessNm: bounded(value, layer.thicknessNm, 1, 1e6) })} /></Column>
-                  {layer.mode !== "uniform" && <Column sm={4} md={4} lg={8}><Select id={`layer-${layer.id}-gds`} labelText="GDS layer" size="md" value={layer.gdsLayer} onChange={(event) => changeLayer(layer.id, { gdsLayer: Number(event.target.value) })}>{availableLayers.map((number) => <SelectItem key={number} value={number} text={String(number)} />)}</Select></Column>}
+                  {layer.mode !== "uniform" && <Column sm={4} md={4} lg={8}><Select id={`layer-${layer.id}-gds`} labelText="GDS layer" size="md" disabled={availableLayers.length === 0} value={availableLayers.length ? layer.gdsLayer : ""} onChange={(event) => changeLayer(layer.id, { gdsLayer: Number(event.target.value) })}>{availableLayers.length === 0 && <SelectItem value="" text="Load GDS first" />}{availableLayers.map((number) => <SelectItem key={number} value={number} text={String(number)} />)}</Select></Column>}
                 </Grid>
               </Tile>)}
             </div>
@@ -603,8 +592,8 @@ export default function SpinCoatPage() {
             <Grid condensed className="spin-fields">
               <Column sm={4} md={8} lg={16}><Select id="coating-library" labelText="Coating library" size="md" value={coatingLibrary} onChange={(event) => { restoreCustomCalibration(); setCoatingLibrary(event.target.value as "photoresist" | "oxide"); }}><SelectItem value="photoresist" text="Photoresists" /><SelectItem value="oxide" text="Metal oxides" /></Select></Column>
               {coatingLibrary === "photoresist" ? <>
-                <Column sm={4} md={4} lg={8}><Select id="photoresist-polarity" labelText="Polarity" size="md" value={photoresistPolarity} onChange={(event) => { restoreCustomCalibration(); setPhotoresistPolarity(event.target.value); }}><SelectItem value="" text="All polarities" />{PHOTORESIST_POLARITIES.map((polarity) => <SelectItem key={polarity} value={polarity} text={polarity} />)}</Select></Column>
-                <Column sm={4} md={4} lg={8}><Select id="photoresist-brand" labelText="Brand" size="md" value={photoresistManufacturer} onChange={(event) => { restoreCustomCalibration(); setPhotoresistManufacturer(event.target.value); }}><SelectItem value="" text="All brands" />{PHOTORESIST_MANUFACTURERS.map((manufacturer) => <SelectItem key={manufacturer} value={manufacturer} text={manufacturer} />)}</Select></Column>
+                <Column sm={4} md={4} lg={16}><Select id="photoresist-polarity" labelText="Polarity" size="md" value={photoresistPolarity} onChange={(event) => { restoreCustomCalibration(); setPhotoresistPolarity(event.target.value); }}><SelectItem value="" text="All polarities" />{PHOTORESIST_POLARITIES.map((polarity) => <SelectItem key={polarity} value={polarity} text={polarity} />)}</Select></Column>
+                <Column sm={4} md={4} lg={16}><Select id="photoresist-brand" labelText="Brand" size="md" value={photoresistManufacturer} onChange={(event) => { restoreCustomCalibration(); setPhotoresistManufacturer(event.target.value); }}><SelectItem value="" text="All brands" />{PHOTORESIST_MANUFACTURERS.map((manufacturer) => <SelectItem key={manufacturer} value={manufacturer} text={manufacturer} />)}</Select></Column>
                 <Column sm={4} md={8} lg={16}><Select id="photoresist-exposure" labelText="Exposure" size="md" value={photoresistExposureNm} onChange={(event) => { restoreCustomCalibration(); setPhotoresistExposureNm(event.target.value); }}><SelectItem value="" text="All wavelengths" />{PHOTORESIST_EXPOSURE_WAVELENGTHS.map((wavelength) => <SelectItem key={wavelength} value={wavelength} text={`≈${wavelength} nm (h-line)`} />)}</Select></Column>
               </> : <Column sm={4} md={8} lg={16}><Select id="metal-oxide-family" labelText="Oxide" size="md" value={metalOxideFamily} onChange={(event) => { restoreCustomCalibration(); setMetalOxideFamily(event.target.value); }}><SelectItem value="" text="All oxides" />{METAL_OXIDE_FAMILIES.map((family) => <SelectItem key={family} value={family} text={family} />)}</Select></Column>}
               <Column sm={4} md={8} lg={16} className="spin-reference-picker">
@@ -669,7 +658,7 @@ export default function SpinCoatPage() {
             className="spin-outcome"
             title={fileName || "Coating profile"}
             headingRef={resultHeading}
-            status={{ state: "up-to-date", label: "Inputs and profile up to date", detail: lastUpdated ? `Rendered ${lastUpdated}; model checks below determine quantitative readiness.` : "Model checks below determine quantitative readiness." }}
+            status={{ state: "up-to-date", label: "Profile up to date" }}
             summary={`${coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " with local edits" : ""}` : "Custom calibration"}. The profile uses the current stack and film model; experimental calibration is still required before process transfer.`}
             actions={[
               { id: "export-png", label: "Export PNG", emphasis: "primary", onClick: exportPng },
@@ -708,12 +697,12 @@ export default function SpinCoatPage() {
           </> : <ScientificEmptyState
             className="spin-empty-state"
             title={geometryMessage ? "No coating profile for this section" : "No coating profile yet"}
-            description={geometryMessage ?? "Use Load example in the header or load a local GDS file from Input to calculate and display the cross-section."}
+            description={geometryMessage ?? "Load the example or choose a local GDS file from Input to calculate and display the cross-section."}
+            action={!geometryMessage ? <Button kind="primary" size="md" renderIcon={Document} onClick={loadDemo}>Load example</Button> : undefined}
           />}
         </section>
     </ScientificAppShell>
     <Modal
-      className="spin-gds-modal"
       open={Boolean(pendingGds)}
       modalHeading="Choose the GDS top cell"
       modalLabel="GDS import"

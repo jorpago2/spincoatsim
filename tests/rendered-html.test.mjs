@@ -44,7 +44,7 @@ test("exports the SpinCoatSim application", async () => {
   assert.match(source, /<ScientificToolRail/);
   assert.match(source, /className="spin-navigation"/);
   assert.match(source, /primaryAction=\{<ScientificHeaderAction kind="primary" label="Load example"/);
-  assert.equal(source.match(/onClick=\{loadDemo\}/g)?.length, 1);
+  assert.equal(source.match(/onClick=\{loadDemo\}/g)?.length, 2);
   assert.match(source, /activeId=\{activePanel \?\? "results"\}/);
   assert.match(source, /expandedId=\{activePanel\}/);
   assert.match(source, /registerItemRef=/);
