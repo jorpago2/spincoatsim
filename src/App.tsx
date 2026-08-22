@@ -43,7 +43,7 @@ import {
   polygonIntervalsAtY,
   sampleIntervals,
 } from "@/lib/spincoat.js";
-import type { CalibrationField, CalibrationState, CoatingReference, ExportNotice, LayerMode, PendingGds, Provenance, SectionResult, SpinSession, StackLayer, ToolPanel } from "./spincoatTypes";
+import type { CalibrationField, CalibrationState, CoatingReference, ExportNotice, LayerMode, PendingGds, Provenance, SectionGeometryStatus, SectionResult, SpinSession, StackLayer, ToolPanel } from "./spincoatTypes";
 
 
 const DEMO_SHAPES: GdsShape[] = [
@@ -228,9 +228,14 @@ export default function SpinCoatPage() {
   } satisfies Record<string, Provenance>;
   const hasReferenceEdits = Boolean(coatingPreset) && Object.values(parameterProvenance).includes("Edited");
 
-  const section = useMemo<SectionResult | null>(() => {
-    if (!shapes.length) return null;
+  const sectionComputation = useMemo<{ result: SectionResult | null; status: SectionGeometryStatus | null }>(() => {
+    if (!shapes.length) return { result: null, status: null };
     const slices = layers.map((layer) => polygonIntervalsAtY(shapes, layer.gdsLayer, sliceY));
+    const intervals = slices.flatMap((slice) => slice.intervals);
+    const status: SectionGeometryStatus = intervals.length > 0
+      ? "intersects"
+      : slices.some((slice) => slice.touchesBoundary) ? "boundary-touch" : "outside";
+    if (status !== "intersects") return { result: null, status };
     const preparedLayers = layers.map((layer, index) => ({
       ...layer,
       mask: sampleIntervals(slices[index].intervals, xMin, xMax, RESOLUTION),
@@ -241,11 +246,26 @@ export default function SpinCoatPage() {
       layers: preparedLayers,
     });
     return {
-      columns,
-      film: buildSpinFilm(columns, finalThickness, levelingStrength / 100, levelingLength / (viewWidth / RESOLUTION)),
-      ignoredPaths: slices.reduce((sum, slice) => sum + slice.ignoredPaths, 0),
+      status,
+      result: {
+        geometry: {
+          status,
+          intervalCount: intervals.length,
+          coveredWidthMicrometers: intervals.reduce((sum, [start, end]) => sum + end - start, 0),
+        },
+        columns,
+        film: buildSpinFilm(columns, finalThickness, levelingStrength / 100, levelingLength / (viewWidth / RESOLUTION)),
+        ignoredPaths: slices.reduce((sum, slice) => sum + slice.ignoredPaths, 0),
+      },
     };
   }, [shapes, layers, sliceY, xMin, xMax, substrateThickness, finalThickness, levelingStrength, levelingLength, viewWidth]);
+  const section = sectionComputation.result;
+  const geometryStatus = sectionComputation.status;
+  const geometryMessage = geometryStatus === "boundary-touch"
+    ? "The selected section only touches the imported geometry boundary; choose a Y value that crosses a positive-width polygon interval."
+    : geometryStatus === "outside"
+      ? "The selected section is outside the imported polygon geometry; no coating profile is generated or exportable."
+      : undefined;
 
   useScientificResultTransition({
     state: section ? "up-to-date" : "needs-input",
@@ -429,6 +449,7 @@ export default function SpinCoatPage() {
   }
 
   function exportPng() {
+    if (!section) return;
     canvas.current?.toBlob((blob) => {
       if (!blob) return;
       const exportedFileName = "spincoat-section.png";
@@ -500,7 +521,11 @@ export default function SpinCoatPage() {
           href="/spincoatsim/"
           contextLabel="Current model"
           context={fileName || "No GDS loaded"}
-          status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Up to date" : "Needs input" }}
+          status={{
+            state: section ? "up-to-date" : geometryMessage ? "failed" : "needs-input",
+            label: section ? "Inputs and profile up to date" : geometryMessage ? "Section has no geometry" : "Needs input",
+            detail: geometryMessage,
+          }}
           help={{
             summary: "Load a GDS section, define the existing stack, configure the coating calibration, then inspect and export the predicted profile.",
             shortcuts: [{ keys: ["Esc"], description: "Close the active panel" }],
@@ -544,7 +569,12 @@ export default function SpinCoatPage() {
               <Column sm={4} md={4} lg={8}><NumberField id="centre-x" label="Centre X" unit="µm" value={centreX} min={-1e6} max={1e6} step={0.1} onValue={setCentreX} /></Column>
               <Column sm={4} md={8} lg={16}><NumberField id="displayed-width" label="Displayed width" unit="µm" value={viewWidth} min={0.1} max={1e6} step={0.1} onValue={(value) => setViewWidth(bounded(value, viewWidth, 0.1, 1e6))} /></Column>
             </Grid>
-            <p className="spin-note">{shapes.length ? `Cell ${topCell} · layers ${availableLayers.join(", ")}. The section currently intersects polygon geometry.` : "Load a GDS or the example to reveal the stack and coating result."}</p>
+            <p className="spin-note">{shapes.length
+              ? geometryStatus === "intersects"
+                ? `Cell ${topCell} · layers ${availableLayers.join(", ")}. The section crosses polygon geometry.`
+                : geometryMessage
+              : "Load a GDS or the example to reveal the stack and coating result."}</p>
+            {geometryMessage && <InlineNotification className="spin-notification" lowContrast kind="error" title="No valid section" subtitle={geometryMessage} hideCloseButton />}
             {compatibilityWarnings.length > 0 && <InlineNotification className="spin-notification" lowContrast kind="warning" title="Import compatibility review" subtitle={compatibilityWarnings.join(" ")} hideCloseButton />}
             <Accordion align="start" size="sm" className="spin-tool-about">
               <AccordionItem title="Capabilities and model scope">
@@ -624,7 +654,11 @@ export default function SpinCoatPage() {
             <p className="spin-note">Library values are starting points, not guaranteed recipes. Refit thickness, exponent and leveling to your spinner, substrate and ambient conditions.</p>
           </section>}
         </ScientificTaskPanel>}
-      statusBar={<ScientificStatusBar className="spin-status" status={{ state: section ? "up-to-date" : "needs-input", label: section ? "Coating profile ready" : "Load a GDS file or the example to begin" }} metadata={<><ScientificAutosaveStatus status={autosave.status} savedAt={autosave.lastSavedAt} /><dl>
+      statusBar={<ScientificStatusBar className="spin-status" status={{
+        state: section ? "up-to-date" : geometryMessage ? "failed" : "needs-input",
+        label: section ? "Inputs and profile up to date" : geometryMessage ? "No valid section" : "Load a GDS file or the example to begin",
+        detail: geometryMessage,
+      }} metadata={<><ScientificAutosaveStatus status={autosave.status} savedAt={autosave.lastSavedAt} /><dl>
         <div><dt>Layers</dt><dd>{layers.length}</dd></div>
         <div><dt>Film</dt><dd>{section ? `${finalThickness.toFixed(1)} nm` : "—"}</dd></div>
         <div><dt>Cursor</dt><dd>{section ? `${cursorX.toFixed(2)} µm` : "—"}</dd></div>
@@ -635,7 +669,7 @@ export default function SpinCoatPage() {
             className="spin-outcome"
             title={fileName || "Coating profile"}
             headingRef={resultHeading}
-            status={{ state: "up-to-date", label: "Profile current", detail: lastUpdated ? `Updated ${lastUpdated}` : undefined }}
+            status={{ state: "up-to-date", label: "Inputs and profile up to date", detail: lastUpdated ? `Rendered ${lastUpdated}; model checks below determine quantitative readiness.` : "Model checks below determine quantitative readiness." }}
             summary={`${coatingPreset ? `${coatingPreset.name}${hasReferenceEdits ? " with local edits" : ""}` : "Custom calibration"}. The profile uses the current stack and film model; experimental calibration is still required before process transfer.`}
             actions={[
               { id: "export-png", label: "Export PNG", emphasis: "primary", onClick: exportPng },
@@ -671,10 +705,15 @@ export default function SpinCoatPage() {
           </div>
 
           <Accordion align="start" size="md" className="spin-validity"><AccordionItem title="Model boundary"><p>RPM scaling is empirical and should be fitted to your sol. The profile applies finite-range Gaussian leveling and conserves coating area; it is a reduced geometric surrogate, not a solution of centrifugal flow, capillarity, solvent evaporation, edge bead, dewetting or gel chemistry.</p>{section.ignoredPaths > 0 && <p className="spin-warning">{section.ignoredPaths} PATH element(s) cross the selected process layers and are omitted from this section.</p>}</AccordionItem></Accordion>
-          </> : <ScientificEmptyState className="spin-empty-state" title="No coating profile yet" description="Use Load example in the header or load a local GDS file from Input to calculate and display the cross-section." />}
+          </> : <ScientificEmptyState
+            className="spin-empty-state"
+            title={geometryMessage ? "No coating profile for this section" : "No coating profile yet"}
+            description={geometryMessage ?? "Use Load example in the header or load a local GDS file from Input to calculate and display the cross-section."}
+          />}
         </section>
     </ScientificAppShell>
     <Modal
+      className="spin-gds-modal"
       open={Boolean(pendingGds)}
       modalHeading="Choose the GDS top cell"
       modalLabel="GDS import"

@@ -84,7 +84,7 @@ test('imports and flattens a local GDS in the worker', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('')
-  await page.getByRole('button', { name: 'Input' }).click()
+  await page.locator('#spin-nav-input').click()
   await page.locator('input[type="file"]').setInputFiles({
     name: 'worker-fixture.gds',
     mimeType: 'application/octet-stream',
@@ -101,7 +101,7 @@ test('demo result is responsive, current and explicit about calibration', async 
 }) => {
   await page.goto('')
   await page.getByRole('button', { name: /Load example/ }).first().click()
-  await expect(page.getByText('Profile current')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Coating results' }).getByText('Inputs and profile up to date', { exact: true })).toBeVisible()
   await expect(page.getByText('Calibration law', { exact: true })).toBeVisible()
   await expect(page.getByText(/generic single-reference-point model/i)).toBeVisible()
   const fit = await page.evaluate(() => ({
@@ -117,6 +117,31 @@ test('demo result is responsive, current and explicit about calibration', async 
   expect(fit.canvas).toBeLessThanOrEqual(fit.viewport)
   expect(fit.stageOverflow).toBe('auto')
   expect(fit.previewOverflow).toBe('visible')
+})
+
+test('a section outside imported geometry blocks the profile and export', async ({ page }) => {
+  await page.goto('')
+  await page.getByRole('button', { name: /Load example/ }).first().click()
+  await page.locator('#spin-nav-input').click()
+  const sectionY = page.getByLabel('Section Y (µm)')
+  await sectionY.fill('1000')
+  await sectionY.press('Enter')
+
+  const inputPanel = page.getByRole('complementary', { name: 'GDS section' })
+  await expect(inputPanel.getByText('No valid section', { exact: true })).toBeVisible()
+  await expect(inputPanel.locator('p.spin-note')).toContainText('outside the imported polygon geometry')
+  await inputPanel.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('heading', { name: 'No coating profile for this section' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Export JSON' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Export PNG' })).toHaveCount(0)
+})
+
+test('the canvas has a navigable numeric profile alternative', async ({ page }) => {
+  await page.goto('')
+  await page.getByRole('button', { name: /Load example/ }).first().click()
+  await page.getByText('Accessible profile data', { exact: true }).click()
+  await expect(page.getByRole('table', { name: 'Accessible spin-coated profile data' })).toBeVisible()
+  await expect(page.getByText(/Surface range/)).toBeVisible()
 })
 
 test('canvas pointer coordinates follow the plotted x-axis margins', async ({ page }) => {
@@ -142,7 +167,7 @@ test('active GDS work can be cancelled without publishing a late result', async 
   page,
 }) => {
   await page.goto('')
-  await page.getByRole('button', { name: 'Input' }).click()
+  await page.locator('#spin-nav-input').click()
   await page.locator('input[type="file"]').setInputFiles({
     name: 'cancel-fixture.gds',
     mimeType: 'application/octet-stream',
@@ -161,7 +186,7 @@ test('React owns panel visibility, keyboard focus and Carbon editor state', asyn
   await expect(panelColumn).toBeHidden()
   expect(await panelColumn.evaluate((element) => getComputedStyle(element).display)).toBe('none')
 
-  const inputTool = page.getByRole('button', { name: 'Input' })
+  const inputTool = page.locator('#spin-nav-input')
   const controlledId = await inputTool.getAttribute('aria-controls')
   expect(controlledId).toBeTruthy()
   await expect(page.locator(`#${controlledId}`)).toHaveCount(1)
@@ -236,7 +261,7 @@ test('autosave recovery keeps custom calibration behind a selected reference', a
 
 test('multiple GDS top cells are resolved in a React Carbon modal', async ({ page }) => {
   await page.goto('')
-  await page.getByRole('button', { name: 'Input' }).click()
+  await page.locator('#spin-nav-input').click()
   await page.locator('input[type="file"]').setInputFiles({
     name: 'multiple-top-cells.gds',
     mimeType: 'application/octet-stream',
@@ -269,7 +294,7 @@ test('multiple GDS top cells are resolved in a React Carbon modal', async ({ pag
   await page.getByLabel('Top cell').selectOption('CELL_B')
   await page.getByRole('button', { name: 'Use selected cell' }).click()
   await expect(page.locator('canvas')).toBeVisible()
-  await page.getByRole('button', { name: 'Input' }).click()
+  await page.locator('#spin-nav-input').click()
   await expect(page.getByText(/Cell CELL_B/)).toBeVisible()
 })
 

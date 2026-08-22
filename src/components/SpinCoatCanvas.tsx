@@ -161,14 +161,25 @@ export function SpinCoatCanvas({
     margin.left, 20)
   }, [canvasCssWidth, canvasRef, cursorIndex, plotTheme, section, sliceY, viewWidth, xMin])
 
+  const sampleIndices = [...new Set([
+    0,
+    Math.round((RESOLUTION - 1) * 0.25),
+    Math.round((RESOLUTION - 1) * 0.5),
+    Math.round((RESOLUTION - 1) * 0.75),
+    RESOLUTION - 1,
+    cursorIndex,
+  ])].sort((a, b) => a - b)
+  const surfaceRange = `${Math.min(...section.film.surface).toFixed(1)}–${Math.max(...section.film.surface).toFixed(1)} nm`
+  const filmRange = `${section.film.minimumThicknessNm.toFixed(1)}–${section.film.maximumThicknessNm.toFixed(1)} nm`
+
   return <>
     <canvas
       ref={canvasRef}
       width={1200}
       height={650}
       className="spin-canvas scientific-render-surface--dark"
-      aria-label="Simulated material stack cross-section and spin-coated film"
-      aria-describedby="spin-readout"
+      aria-label="Spin-coated cross-section plot: substrate surface and film top in nanometres versus x position in micrometres"
+      aria-describedby="spin-readout spin-profile-description"
       tabIndex={0}
       onPointerMove={(event) => {
         const element = event.currentTarget
@@ -187,5 +198,21 @@ export function SpinCoatCanvas({
       }}
     />
     <div className="spin-readout" id="spin-readout"><span>x = {cursorX.toFixed(2)} µm</span><strong>{localThickness.toFixed(1)} nm local coating</strong></div>
+    <p id="spin-profile-description" className="spin-accessible-description">
+      Section y = {sliceY.toFixed(2)} µm. The imported geometry crosses {section.geometry.intervalCount} positive-width interval{section.geometry.intervalCount === 1 ? "" : "s"} covering {section.geometry.coveredWidthMicrometers.toFixed(2)} µm. Surface range {surfaceRange}; local film thickness range {filmRange}. Use the accessible profile table for representative numeric samples; export JSON for the full {RESOLUTION}-sample dataset.
+    </p>
+    <details className="spin-accessible-data">
+      <summary>Accessible profile data</summary>
+      <table aria-label="Accessible spin-coated profile data">
+        <caption>Representative cross-section samples for the current section</caption>
+        <thead><tr><th scope="col">x (µm)</th><th scope="col">Surface (nm)</th><th scope="col">Film top (nm)</th><th scope="col">Local film (nm)</th></tr></thead>
+        <tbody>{sampleIndices.map((index) => <tr key={index}>
+          <td>{(xMin + ((index + 0.5) / RESOLUTION) * viewWidth).toFixed(2)}</td>
+          <td>{section.film.surface[index].toFixed(2)}</td>
+          <td>{section.film.top[index].toFixed(2)}</td>
+          <td>{section.film.localThickness[index].toFixed(2)}</td>
+        </tr>)}</tbody>
+      </table>
+    </details>
   </>
 }

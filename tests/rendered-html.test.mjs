@@ -51,7 +51,7 @@ test("exports the SpinCoatSim application", async () => {
   assert.doesNotMatch(styles, /--scientific-ui-rail-inline-size/);
   assert.match(source, /useScientificResultTransition\(\{/);
   assert.match(source, /resultRef: resultHeading/);
-  assert.match(canvas, /aria-describedby="spin-readout"/);
+  assert.match(canvas, /aria-describedby="spin-readout spin-profile-description"/);
   assert.match(canvas, /scientific-render-surface--dark/);
   assert.match(canvas, /event\.key !== 'ArrowLeft'/);
   assert.match(styles, /macrostructure: Workbench/);
@@ -63,7 +63,7 @@ test("exports the SpinCoatSim application", async () => {
   }
   assert.match(source, /restoreCustomCalibration/);
   assert.match(source, /<ScientificOutcomeSummary\b/);
-  assert.match(source, /Profile current/);
+  assert.match(source, /Inputs and profile up to date/);
   assert.match(source, /importGdsFile/);
   assert.match(source, /Calibration law/);
   assert.match(source, /Reference process comparison/);

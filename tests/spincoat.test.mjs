@@ -60,6 +60,22 @@ test("builds an area-conserving coated cross-section from a GDS slice", () => {
   assert.equal(film.surface[0], 0);
 });
 
+test("distinguishes a real section crossing from an outside or tangent section", () => {
+  const shape = { kind: "polygon", layer: 1, points: [{ x: -2, y: -1 }, { x: 2, y: -1 }, { x: 2, y: 1 }, { x: -2, y: 1 }] };
+  const inside = polygonIntervalsAtY([shape], 1, 0);
+  const tangent = polygonIntervalsAtY([shape], 1, 1);
+  const tangentAtLowerBoundary = polygonIntervalsAtY([shape], 1, -1);
+  const outside = polygonIntervalsAtY([shape], 1, 1000);
+  assert.ok(inside.intervals.length > 0);
+  assert.equal(inside.touchesBoundary, false);
+  assert.deepEqual(tangent.intervals, []);
+  assert.equal(tangent.touchesBoundary, true);
+  assert.deepEqual(tangentAtLowerBoundary.intervals, []);
+  assert.equal(tangentAtLowerBoundary.touchesBoundary, true);
+  assert.deepEqual(outside.intervals, []);
+  assert.equal(outside.touchesBoundary, false);
+});
+
 test("fractional cells preserve sub-grid feature area under translation", () => {
   const width = 100;
   const count = 480;

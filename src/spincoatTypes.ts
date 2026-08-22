@@ -45,7 +45,13 @@ export type SpinSession = {
   levelingStrength: number
   levelingLength: number
 }
+export type SectionGeometryStatus = 'intersects' | 'boundary-touch' | 'outside'
 export type SectionResult = {
+  geometry: {
+    status: SectionGeometryStatus
+    intervalCount: number
+    coveredWidthMicrometers: number
+  }
   columns: MaterialSegment[][]
   film: {
     surface: number[]
